@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poe Voice Sync</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <h1>Poe Voice Sync</h1>
+    <form id="settings-form">
+        <label for="api-key">ElevenLabs API Key:</label>
+        <input type="text" id="api-key" name="api-key" required>
+        
+        <label for="enable-speech">Enable Speech:</label>
+        <input type="checkbox" id="enable-speech" name="enable-speech">
+    
+        <label for="voice-selection">Choose Voice:</label>
+        <select id="voice-selection" name="voice-selection">
+            <!-- Voice options will be populated dynamically -->
+        </select>
+    
+        <label for="volume">Volume Control:</label>
+        <input type="range" id="volume" name="volume" min="0" max="1" step="0.01">
+    
+        <button type="submit">Save Settings</button>
+    </form>
+</body>
+<script src="popup.js"></script>
+</html>
