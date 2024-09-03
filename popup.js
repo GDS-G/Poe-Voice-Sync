@@ -3,7 +3,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const enableSpeechCheckbox = document.getElementById("enable-speech");
     const voiceSelection = document.getElementById("voice-selection");
     const volumeControl = document.getElementById("volume");
-    const settingsForm = document.getElementById("settings-form");
+    const settingsForm = document.getElementById("save-settings");
+    const btnTextToSpeach = document.getElementById("TextToSpeech");
+    const textToSpeechBox = document.getElementById("TextToSpeech-Input");
 
     // Load settings from Chrome storage
     chrome.storage.sync.get(["apiKey", "enabled", "voice", "volume"], (data) => {
@@ -22,13 +24,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Save settings when the form is submitted
-    settingsForm.addEventListener("submit", (e) => {
+    settingsForm.addEventListener("click", (e) => {
         e.preventDefault();
         const apiKey = apiKeyInput.value.trim();
         const enabled = enableSpeechCheckbox.checked;
         const selectedVoice = voiceSelection.value;
         const volume = parseFloat(volumeControl.value);
-
         chrome.storage.sync.set({
             apiKey: apiKey,
             enabled: enabled,
@@ -93,4 +94,53 @@ document.addEventListener("DOMContentLoaded", () => {
             voiceSelection.appendChild(option);
         });
     }    
+
+  
+    async function ResponseSpeech(url) {
+
+        header = {
+            
+            "Content-Type": "application/json",
+            "xi-api-key": apiKeyInput.value.trim()
+          }
+          body = {
+            "text": "Born and raised in the charming south, I can add a touch of sweet southern hospitality to your audiobooks and podcasts",
+            "voice_settings": {
+              "stability": 0.5,
+              "similarity_boost": 0.5
+            }
+        }
+        try {
+            
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Accept": "audio/mp3",
+                    "Content-Type": "application/json",
+                    "xi-api-key": apiKeyInput.value.trim()},
+                body:{"text": "Born and raised in the charming south, I can add a touch of sweet southern hospitality to your audiobooks and podcasts",
+                    "voice_settings": {
+                    "stability": 0.5,
+                    "similarity_boost": 0.5
+                    }
+                }
+            })
+            console.log("respnose status:",response.detail);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response;
+        } catch (error) {
+            console.error("Error:", error);
+            return [];
+        }
+    }
+    btnTextToSpeach.addEventListener("click", (e) => {
+        url = "https://api.elevenlabs.io/v1/text-to-speech/"+voiceSelection.value;
+        console.log(url)
+        ResponseSpeech(url)
+       
+    });
+    
+
+
 });

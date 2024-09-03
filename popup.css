@@ -1,25 +1,36 @@
 body {
     font-family: Arial, sans-serif;
     margin: 20px;
+    width: 400px;
     padding: 0;
 }
 
 h1 {
     font-size: 20px;
+    margin-left: 5%;
     margin-bottom: 15px;
 }
 
 label {
     display: block;
+    margin-left: 5%;
     margin: 10px 0;
 }
 
 input[type="text"],
 select,
 input[type="range"] {
-    width: 100%;
+    width: 90%;
+    margin-left: 5%;
     padding: 5px;
     margin-bottom: 15px;
+}
+#TextToSpeech-Input{
+    margin-top: 20px;
+    width: 90%;
+    height: 100px;
+    margin-left: 5%;
+
 }
 
 button {
