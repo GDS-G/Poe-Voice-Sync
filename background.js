@@ -1,47 +1,54 @@
-// Function to fetch available voices from ElevenLabs API
-async function fetchVoices(apiKey) {
-    try {
-        const response = await fetch("https://api.elevenlabs.io/v1/voices", {
-            method: "GET",
-            headers: {
-                "xi-api-key": apiKey // Correct header for the API key
-            }
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const data = await response.json();
-        return data.voices;
-    } catch (error) {
-        console.error("Error fetching voices:", error);
-        return [];
-    }
+// Function to play audio
+function playAudio(blob) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        
+        audio.onended = () => {
+            URL.revokeObjectURL(url);
+            resolve();
+        };
+        
+        audio.onerror = (error) => {
+            URL.revokeObjectURL(url);
+            reject(error);
+        };
+        
+        audio.play().catch(reject);
+    });
 }
 
-// Function to convert text to speech using ElevenLabs API
+// Function to convert text to speech using ElevenLabs
 async function textToSpeech(text) {
     try {
-        const data = await chrome.storage.sync.get(["apiKey", "voice", "volume"]);
+        // Get settings from storage
+        const data = await chrome.storage.sync.get(['apiKey', 'voice', 'stability', 'similarity']);
         const apiKey = data.apiKey;
-        const userSettings = {
-            volume: data.volume !== undefined ? parseFloat(data.volume) : 1.0,
-            voice: data.voice || "default_voice_id" // Replace with actual default if needed
-        };
-
+        
         if (!apiKey) {
-            console.error("API key is missing.");
-            return;
+            throw new Error("API key not found. Please set your ElevenLabs API key in the extension settings.");
         }
 
-        const response = await fetch("https://api.elevenlabs.io/v1/speech", {
-            method: "POST",
+        const voiceId = data.voice || 'EXAVITQu4vr4xnSDxMaL'; // Default voice if none selected
+        const stability = data.stability || 0.5;
+        const similarity = data.similarity || 0.75;
+
+        console.log('Making request to ElevenLabs...');
+        
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+            method: 'POST',
             headers: {
-                "xi-api-key": apiKey, // Correct header for the API key
-                "Content-Type": "application/json"
+                'Accept': 'audio/mpeg',
+                'Content-Type': 'application/json',
+                'xi-api-key': apiKey
             },
             body: JSON.stringify({
-                voice_id: userSettings.voice,
-                text: text
+                text: text,
+                model_id: 'eleven_multilingual_v2',
+                voice_settings: {
+                    stability: stability,
+                    similarity_boost: similarity
+                }
             })
         });
 
@@ -49,31 +56,31 @@ async function textToSpeech(text) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
-        const audioData = await response.blob();
-        const audioUrl = URL.createObjectURL(audioData);
-        playAudio(audioUrl, userSettings.volume);
+        const audioBlob = await response.blob();
+        await playAudio(audioBlob);
+
     } catch (error) {
         console.error("Error converting text to speech:", error);
+        throw error;
     }
-}
-
-// Function to play audio
-function playAudio(audioUrl, volume) {
-    const audio = new Audio(audioUrl);
-    audio.volume = volume;
-    audio.play();
 }
 
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log("Message received:", request);
+
     if (request.type === "READ_TEXT") {
-        if (request.text) {
-            textToSpeech(request.text);
-            sendResponse({ status: "success" });
-        } else {
-            console.error("No text provided to read.");
-            sendResponse({ status: "failure", message: "No text provided." });
-        }
+        textToSpeech(request.text)
+            .then(() => {
+                sendResponse({ status: "success" });
+            })
+            .catch((error) => {
+                console.error("Error in text-to-speech:", error);
+                sendResponse({ 
+                    status: "error", 
+                    message: error.message || "Error converting text to speech" 
+                });
+            });
+        return true; // Keep message channel open for async response
     }
-    return true; // Indicate that the response is asynchronous
 });

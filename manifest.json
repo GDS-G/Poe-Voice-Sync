@@ -22,6 +22,10 @@
             "run_at": "document_end"
         }
     ],
+    "web_accessible_resources": [{
+        "resources": ["icons/*"],
+        "matches": ["*://*.poe.com/*"]
+    }],
     "action": {
         "default_popup": "popup.html",
         "default_icon": {
