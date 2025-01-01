@@ -2,6 +2,7 @@ import authHandler from './auth.js';
 import licenseHandler from './license.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Get all DOM elements
     const form = document.getElementById('settings-form');
     const apiKeyInput = document.getElementById('api-key');
     const voiceSelection = document.getElementById('voice-selection');
@@ -21,11 +22,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const licensedContent = document.getElementById('licensed-content');
     const unlicensedContent = document.getElementById('unlicensed-content');
     const purchaseButton = document.getElementById('purchase-button');
+    const loadingIndicator = document.getElementById('loading-indicator');
 
-    // Check initial auth state
+    // Initial UI update
     await updateAuthUI();
 
-    // Listen for license updates from background script
+    // Listen for license updates
     chrome.runtime.onMessage.addListener((message) => {
         if (message.type === 'LICENSE_UPDATED') {
             updateAuthUI();
@@ -34,24 +36,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Auth event listeners
     signInButton.addEventListener('click', async () => {
-        const result = await authHandler.signIn();
-        if (result.success) {
-            await updateAuthUI();
-        } else {
-            showStatus('Sign in failed: ' + result.error, 'error');
+        loadingIndicator.style.display = 'block';
+        try {
+            const result = await authHandler.signIn();
+            if (result.success) {
+                await updateAuthUI();
+            } else {
+                showStatus('Sign in failed: ' + result.error, 'error');
+            }
+        } finally {
+            loadingIndicator.style.display = 'none';
         }
     });
 
     signOutButton.addEventListener('click', async () => {
-        const result = await authHandler.signOut();
-        if (result.success) {
-            await updateAuthUI();
-        } else {
-            showStatus('Sign out failed: ' + result.error, 'error');
+        loadingIndicator.style.display = 'block';
+        try {
+            const result = await authHandler.signOut();
+            if (result.success) {
+                await updateAuthUI();
+            } else {
+                showStatus('Sign out failed: ' + result.error, 'error');
+            }
+        } finally {
+            loadingIndicator.style.display = 'none';
         }
     });
 
-    // Purchase button listener - Updated to use GitHub Pages
+    // Purchase button listener
     purchaseButton.addEventListener('click', () => {
         const width = 500;
         const height = 600;
@@ -65,89 +77,66 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
     });
 
-    // Add message listener to handle payment completion from GitHub Pages
+    // Handle payment completion message
     window.addEventListener('message', async (event) => {
-        // Verify message origin
         if (event.origin !== 'https://gds-g.github.io') return;
 
         if (event.data.type === 'PAYMENT_COMPLETE') {
+            loadingIndicator.style.display = 'block';
             try {
-                // Notify background script to activate license
+                const authState = await authHandler.getAuthState();
+                if (!authState.isAuthenticated) {
+                    throw new Error('User must be signed in to activate license');
+                }
+
+                // Generate and store license
+                const licenseResult = await licenseHandler.generateLicenseKey(authState.userEmail);
+                if (!licenseResult.success) {
+                    throw new Error('Failed to generate license');
+                }
+
+                // Show licensed content immediately
+                signInContent.style.display = 'none';
+                signedInContent.style.display = 'block';
+                licensedContent.style.display = 'block';
+                unlicensedContent.style.display = 'none';
+                form.style.display = 'block';
+
+                // Load initial settings
+                await loadInitialSettings();
+
+                // Notify background script
                 await chrome.runtime.sendMessage({
                     type: 'PAYMENT_COMPLETE',
                     orderId: event.data.orderId,
-                    transactionId: event.data.transactionId
+                    transactionId: event.data.transactionId,
+                    licenseKey: licenseResult.licenseKey
                 });
 
-                // Update UI to show licensed state
+                showStatus('License activated successfully!', 'success');
+
+                // Force UI refresh
                 await updateAuthUI();
             } catch (error) {
                 console.error('License activation error:', error);
-                showStatus('License activation failed. Please contact support.', 'error');
+                showStatus('License activation failed: ' + error.message, 'error');
+            } finally {
+                loadingIndicator.style.display = 'none';
             }
         }
     });
 
-    async function updateAuthUI() {
-        const authState = await authHandler.getAuthState();
+    async function loadInitialSettings() {
+        const settings = await chrome.storage.sync.get(['apiKey', 'voice', 'volume', 'enabled']);
 
-        if (authState.isAuthenticated) {
-            signInContent.style.display = 'none';
-            signedInContent.style.display = 'block';
-            userEmailSpan.textContent = authState.userEmail;
-            licenseSection.style.display = 'block';
-
-            const licenseStatus = await checkLicenseStatus();
-            if (licenseStatus.isLicensed) {
-                licensedContent.style.display = 'block';
-                unlicensedContent.style.display = 'none';
-                form.style.display = 'block';
-            } else {
-                licensedContent.style.display = 'none';
-                unlicensedContent.style.display = 'block';
-                form.style.display = 'none';
-            }
-        } else {
-            signInContent.style.display = 'block';
-            signedInContent.style.display = 'none';
-            licenseSection.style.display = 'none';
-            form.style.display = 'none';
-        }
-    }
-
-    async function checkLicenseStatus() {
-        const authState = await authHandler.getAuthState();
-        if (!authState.isAuthenticated) {
-            return { isLicensed: false };
+        if (settings.apiKey) {
+            apiKeyInput.value = settings.apiKey;
+            await fetchVoices(settings.apiKey);
         }
 
-        const licenseData = await licenseHandler.getLicense();
-        if (!licenseData.success || !licenseData.licenseKey) {
-            return { isLicensed: false };
-        }
-
-        const validation = await licenseHandler.validateLicenseKey(licenseData.licenseKey, authState.userEmail);
-        return { isLicensed: validation.success && validation.isValid };
-    }
-
-    function showStatus(message, type = 'success') {
-        const status = document.createElement('div');
-        status.textContent = message;
-        status.className = `status-message ${type}`;
-        form.appendChild(status);
-        setTimeout(() => status.remove(), 3000);
-    }
-
-    // Settings management
-    chrome.storage.sync.get(['apiKey', 'voice', 'volume', 'enabled'], async (data) => {
-        if (data.apiKey) {
-            apiKeyInput.value = data.apiKey;
-            await fetchVoices(data.apiKey);
-        }
-
-        if (data.voice) {
+        if (settings.voice) {
             setTimeout(() => {
-                voiceSelection.value = data.voice;
+                voiceSelection.value = settings.voice;
                 if (voiceSelection.selectedIndex === -1) {
                     voiceSelection.selectedIndex = 0;
                     chrome.storage.sync.set({ voice: voiceSelection.value });
@@ -155,19 +144,63 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, 500);
         }
 
-        if (data.volume !== undefined) {
-            volumeSlider.value = data.volume;
+        if (settings.volume !== undefined) {
+            volumeSlider.value = settings.volume;
+            updateVolumeLabel();
+        } else {
+            volumeSlider.value = 0.7;
+            updateVolumeLabel();
         }
-        updateVolumeLabel();
 
-        if (data.enabled !== undefined) {
-            enableSpeechCheckbox.checked = data.enabled;
+        if (settings.enabled !== undefined) {
+            enableSpeechCheckbox.checked = settings.enabled;
+        } else {
+            enableSpeechCheckbox.checked = true;
         }
+    }
 
-        if (!data.apiKey || data.volume === undefined || data.enabled === undefined) {
-            saveSettings();
+    async function updateAuthUI() {
+        loadingIndicator.style.display = 'block';
+        try {
+            const authState = await authHandler.getAuthState();
+
+            if (authState.isAuthenticated) {
+                signInContent.style.display = 'none';
+                signedInContent.style.display = 'block';
+                userEmailSpan.textContent = authState.userEmail;
+                licenseSection.style.display = 'block';
+
+                const verification = await licenseHandler.verifyLicenseForEmail(authState.userEmail);
+                if (verification.success && verification.isValid) {
+                    licensedContent.style.display = 'block';
+                    unlicensedContent.style.display = 'none';
+                    form.style.display = 'block';
+                    await loadInitialSettings();
+                } else {
+                    licensedContent.style.display = 'none';
+                    unlicensedContent.style.display = 'block';
+                    form.style.display = 'none';
+                }
+            } else {
+                signInContent.style.display = 'block';
+                signedInContent.style.display = 'none';
+                licenseSection.style.display = 'none';
+                form.style.display = 'none';
+            }
+        } finally {
+            loadingIndicator.style.display = 'none';
         }
-    });
+    }
+
+    function showStatus(message, type = 'success') {
+        const statusDiv = document.getElementById('status-message');
+        statusDiv.textContent = message;
+        statusDiv.className = `status-message ${type}`;
+        statusDiv.style.display = 'block';
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 3000);
+    }
 
     function updateVolumeLabel() {
         const value = Math.round(volumeSlider.value * 100);
@@ -183,11 +216,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         chrome.storage.sync.set(settings, () => {
-            const status = document.createElement('div');
-            status.textContent = 'Settings saved!';
-            status.className = 'status-message success';
-            form.appendChild(status);
-            setTimeout(() => status.remove(), 2000);
+            showStatus('Settings saved!', 'success');
         });
     }
 

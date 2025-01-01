@@ -1,26 +1,34 @@
 // license.js
 class LicenseHandler {
     constructor() {
-        // This key would normally be stored securely, but for testing we'll use a fixed key
-        this.testKey = 'test_license_key_2024';
+        this.testKey = 'poe_voice_sync_license_2024';
     }
 
     async generateLicenseKey(userEmail) {
         try {
-            // Convert email to bytes
             const encoder = new TextEncoder();
             const data = encoder.encode(userEmail + this.testKey);
-            
-            // Hash the data
             const hashBuffer = await crypto.subtle.digest('SHA-256', data);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
-            
-            // Convert to hex string and take first 16 characters as license key
             const licenseKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
-            
+
+            // Store both locally and in sync storage
+            await chrome.storage.local.set({
+                licenseKey,
+                licensedEmail: userEmail,
+                purchaseDate: Date.now()
+            });
+
+            await chrome.storage.sync.set({
+                licenseKey,
+                licensedEmail: userEmail,
+                purchaseDate: Date.now()
+            });
+
             return {
                 success: true,
-                licenseKey
+                licenseKey,
+                userEmail
             };
         } catch (error) {
             console.error('Error generating license:', error);
@@ -31,19 +39,78 @@ class LicenseHandler {
         }
     }
 
-    async validateLicenseKey(licenseKey, userEmail) {
+    async verifyLicenseForEmail(userEmail) {
         try {
-            // For testing, generate what the valid key should be
-            const validLicense = await this.generateLicenseKey(userEmail);
-            
-            if (!validLicense.success) {
-                throw new Error('Failed to validate license');
+            // First check sync storage
+            const syncData = await chrome.storage.sync.get(['licenseKey', 'licensedEmail']);
+            if (syncData.licenseKey && syncData.licensedEmail === userEmail) {
+                // Verify the license is valid for this email
+                const encoder = new TextEncoder();
+                const data = encoder.encode(userEmail + this.testKey);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const expectedKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
+
+                if (syncData.licenseKey === expectedKey) {
+                    // Update local storage for redundancy
+                    await chrome.storage.local.set({
+                        licenseKey: syncData.licenseKey,
+                        licensedEmail: userEmail
+                    });
+
+                    return {
+                        success: true,
+                        isValid: true,
+                        licenseKey: syncData.licenseKey
+                    };
+                }
             }
 
-            // Compare with provided key
+            // If not found in sync, check local storage
+            const localData = await chrome.storage.local.get(['licenseKey', 'licensedEmail']);
+            if (localData.licenseKey && localData.licensedEmail === userEmail) {
+                // Verify the local license
+                const encoder = new TextEncoder();
+                const data = encoder.encode(userEmail + this.testKey);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const expectedKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
+
+                if (localData.licenseKey === expectedKey) {
+                    // Update sync storage
+                    await chrome.storage.sync.set({
+                        licenseKey: localData.licenseKey,
+                        licensedEmail: userEmail
+                    });
+
+                    return {
+                        success: true,
+                        isValid: true,
+                        licenseKey: localData.licenseKey
+                    };
+                }
+            }
+
+            // No valid license found
             return {
                 success: true,
-                isValid: licenseKey === validLicense.licenseKey
+                isValid: false
+            };
+        } catch (error) {
+            console.error('Error verifying license:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async validateLicenseKey(licenseKey, userEmail) {
+        try {
+            const verification = await this.verifyLicenseForEmail(userEmail);
+            return {
+                success: verification.success,
+                isValid: verification.success && verification.isValid && verification.licenseKey === licenseKey
             };
         } catch (error) {
             console.error('License validation error:', error);
@@ -54,25 +121,22 @@ class LicenseHandler {
         }
     }
 
-    async storeLicense(licenseKey) {
-        try {
-            await chrome.storage.sync.set({ licenseKey });
-            return { success: true };
-        } catch (error) {
-            console.error('Error storing license:', error);
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-
     async getLicense() {
         try {
-            const data = await chrome.storage.sync.get(['licenseKey']);
+            // Check both storages
+            const [syncData, localData] = await Promise.all([
+                chrome.storage.sync.get(['licenseKey', 'licensedEmail', 'purchaseDate']),
+                chrome.storage.local.get(['licenseKey', 'licensedEmail', 'purchaseDate'])
+            ]);
+
+            // Prefer sync storage data
+            const data = syncData.licenseKey ? syncData : localData;
+
             return {
                 success: true,
-                licenseKey: data.licenseKey || null
+                licenseKey: data.licenseKey || null,
+                licensedEmail: data.licensedEmail || null,
+                purchaseDate: data.purchaseDate || null
             };
         } catch (error) {
             console.error('Error getting license:', error);
@@ -83,17 +147,42 @@ class LicenseHandler {
         }
     }
 
-    // For testing: Generate and store a valid license
-    async generateTestLicense(userEmail) {
-        const result = await this.generateLicenseKey(userEmail);
-        if (result.success) {
-            await this.storeLicense(result.licenseKey);
+    async restoreLicense(userEmail) {
+        try {
+            // Verify if this email has a valid license
+            const verification = await this.verifyLicenseForEmail(userEmail);
+
+            if (verification.success && verification.isValid) {
+                // Update both storages
+                await Promise.all([
+                    chrome.storage.sync.set({
+                        licenseKey: verification.licenseKey,
+                        licensedEmail: userEmail
+                    }),
+                    chrome.storage.local.set({
+                        licenseKey: verification.licenseKey,
+                        licensedEmail: userEmail
+                    })
+                ]);
+
+                return {
+                    success: true,
+                    licenseKey: verification.licenseKey,
+                    message: 'License restored successfully'
+                };
+            }
+
             return {
-                success: true,
-                licenseKey: result.licenseKey
+                success: false,
+                message: 'No valid license found for this email'
+            };
+        } catch (error) {
+            console.error('Error restoring license:', error);
+            return {
+                success: false,
+                error: error.message
             };
         }
-        return result;
     }
 }
 

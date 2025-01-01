@@ -97,6 +97,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "PAYMENT_COMPLETE") {
         handlePaymentComplete(request.orderId)
             .then(() => {
+                chrome.runtime.sendMessage({
+                    type: 'LICENSE_UPDATED'
+                }).catch(() => {/* Ignore errors if no listeners */ });
+
                 sendResponse({ status: "success" });
             })
             .catch((error) => {
@@ -106,6 +110,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     message: error.message
                 });
             });
+        return true;
+    }
+
+    // Handle license check
+    if (request.type === "CHECK_LICENSE") {
+        chrome.storage.sync.get(['licenseKey', 'licensedEmail'], (data) => {
+            sendResponse({
+                isActivated: !!(data.licenseKey && data.licensedEmail)
+            });
+        });
         return true;
     }
 });

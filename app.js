@@ -45,39 +45,21 @@ window.paypal
                     orderData?.purchase_units?.[0]?.payments?.authorizations?.[0];
 
                 if (transaction?.status === "COMPLETED") {
-                    // Activate license
-                    try {
-                        await chrome.runtime.sendMessage({
-                            type: 'PAYMENT_COMPLETE',
-                            orderId: orderData.id
-                        });
+                    // Send message to extension
+                    window.opener.postMessage({
+                        type: 'PAYMENT_COMPLETE',
+                        orderId: orderData.id,
+                        transactionId: transaction.id
+                    }, '*');
 
-                        resultMessage(`
-                            Payment successful!<br>
-                            Transaction ID: ${transaction.id}<br>
-                            Activating your license...
-                        `);
+                    // Close window immediately after payment
+                    window.close();
 
-                        // Close window after successful activation
-                        setTimeout(() => {
-                            window.close();
-                        }, 3000);
-
-                    } catch (licenseError) {
-                        console.error('License activation error:', licenseError);
-                        resultMessage(`
-                            Payment successful, but license activation failed.<br>
-                            Please contact support with Transaction ID: ${transaction.id}
-                        `, true);
-                    }
                 } else if (transaction?.status === "INSTRUMENT_DECLINED") {
                     return actions.restart();
                 } else {
                     throw new Error(`Unexpected transaction status: ${transaction?.status}`);
                 }
-
-                // Log full order data for debugging
-                console.log("Order data:", JSON.stringify(orderData, null, 2));
 
             } catch (error) {
                 console.error(error);
@@ -97,10 +79,3 @@ window.paypal
         }
     })
     .render("#paypal-button-container");
-
-// Handle messages from background script
-chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === 'LICENSE_ACTIVATED') {
-        resultMessage('License activated successfully! You can now close this window.');
-    }
-});

@@ -8,9 +8,17 @@ class AuthHandler {
 
     async checkAuthState() {
         try {
-            const authData = await chrome.storage.sync.get(['userEmail', 'isAuthenticated']);
+            // Check both sync and local storage
+            const [syncData, localData] = await Promise.all([
+                chrome.storage.sync.get(['userEmail', 'isAuthenticated']),
+                chrome.storage.local.get(['userEmail', 'isAuthenticated'])
+            ]);
+
+            // Prefer sync storage data
+            const authData = syncData.isAuthenticated ? syncData : localData;
             this.isAuthenticated = authData.isAuthenticated || false;
             this.userEmail = authData.userEmail || null;
+
             return this.isAuthenticated;
         } catch (error) {
             console.error('Error checking auth state:', error);
@@ -36,11 +44,17 @@ class AuthHandler {
 
             const userInfo = await response.json();
 
-            // Store auth state
-            await chrome.storage.sync.set({
-                isAuthenticated: true,
-                userEmail: userInfo.email
-            });
+            // Store auth state in both storages
+            await Promise.all([
+                chrome.storage.sync.set({
+                    isAuthenticated: true,
+                    userEmail: userInfo.email
+                }),
+                chrome.storage.local.set({
+                    isAuthenticated: true,
+                    userEmail: userInfo.email
+                })
+            ]);
 
             this.isAuthenticated = true;
             this.userEmail = userInfo.email;
@@ -70,8 +84,12 @@ class AuthHandler {
                 await chrome.identity.removeCachedAuthToken({ token: token.token });
             }
 
-            // Clear storage
-            await chrome.storage.sync.remove(['userEmail', 'isAuthenticated', 'licenseKey']);
+            // Only remove auth state, preserve license data
+            const keysToRemove = ['userEmail', 'isAuthenticated'];
+            await Promise.all([
+                chrome.storage.sync.remove(keysToRemove),
+                chrome.storage.local.remove(keysToRemove)
+            ]);
 
             this.isAuthenticated = false;
             this.userEmail = null;
@@ -82,7 +100,13 @@ class AuthHandler {
             // Even if there's an error, clear local state
             this.isAuthenticated = false;
             this.userEmail = null;
-            await chrome.storage.sync.remove(['userEmail', 'isAuthenticated', 'licenseKey']);
+
+            // Only remove auth state, preserve license data
+            const keysToRemove = ['userEmail', 'isAuthenticated'];
+            await Promise.all([
+                chrome.storage.sync.remove(keysToRemove),
+                chrome.storage.local.remove(keysToRemove)
+            ]);
 
             return {
                 success: false,
@@ -100,6 +124,5 @@ class AuthHandler {
     }
 }
 
-// Create and export a singleton instance
 const authHandler = new AuthHandler();
 export default authHandler;
