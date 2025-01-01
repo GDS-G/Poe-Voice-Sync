@@ -13,10 +13,10 @@
     "host_permissions": [
         "*://*.poe.com/*",
         "https://api.elevenlabs.io/*",
-        "https://*.paypal.com/*"
+        "https://gds-g.github.io/*"
     ],
     "content_security_policy": {
-        "extension_pages": "script-src 'self' https://*.paypal.com; object-src 'self'"
+        "extension_pages": "script-src 'self'; object-src 'self'"
     },
     "oauth2": {
         "client_id": "727891588328-oh57b7j5ebdf5289l84aorm4n5p7knll.apps.googleusercontent.com",
@@ -37,12 +37,8 @@
     ],
     "web_accessible_resources": [
         {
-            "resources": [
-                "icons/*",
-                "payment.html",
-                "app.js"
-            ],
-            "matches": [ "*://*.poe.com/*", "https://*.paypal.com/*" ]
+            "resources": [ "icons/*" ],
+            "matches": [ "*://*.poe.com/*" ]
         }
     ],
     "action": {

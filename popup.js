@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Purchase button listener
+    // Purchase button listener - Updated to use GitHub Pages
     purchaseButton.addEventListener('click', () => {
         const width = 500;
         const height = 600;
@@ -59,10 +59,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         const top = (screen.height - height) / 2;
 
         window.open(
-            chrome.runtime.getURL('payment.html'),
+            'https://gds-g.github.io/Poe-Voice-Sync/payment/payment.html',
             'POE Voice Sync Payment',
             `width=${width},height=${height},left=${left},top=${top}`
         );
+    });
+
+    // Add message listener to handle payment completion from GitHub Pages
+    window.addEventListener('message', async (event) => {
+        // Verify message origin
+        if (event.origin !== 'https://gds-g.github.io') return;
+
+        if (event.data.type === 'PAYMENT_COMPLETE') {
+            try {
+                // Notify background script to activate license
+                await chrome.runtime.sendMessage({
+                    type: 'PAYMENT_COMPLETE',
+                    orderId: event.data.orderId,
+                    transactionId: event.data.transactionId
+                });
+
+                // Update UI to show licensed state
+                await updateAuthUI();
+            } catch (error) {
+                console.error('License activation error:', error);
+                showStatus('License activation failed. Please contact support.', 'error');
+            }
+        }
     });
 
     async function updateAuthUI() {
@@ -115,7 +138,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => status.remove(), 3000);
     }
 
-    // Original popup.js functionality
+    // Settings management
     chrome.storage.sync.get(['apiKey', 'voice', 'volume', 'enabled'], async (data) => {
         if (data.apiKey) {
             apiKeyInput.value = data.apiKey;
