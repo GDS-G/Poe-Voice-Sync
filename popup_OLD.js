@@ -1,7 +1,4 @@
-import authHandler from './auth.js';
-import licenseHandler from './license.js';
-
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('settings-form');
     const apiKeyInput = document.getElementById('api-key');
     const voiceSelection = document.getElementById('voice-selection');
@@ -11,146 +8,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     const testButton = document.getElementById('test-tts');
     const statusElement = document.getElementById('test-status');
 
-    // Auth elements
-    const signInContent = document.getElementById('sign-in-content');
-    const signedInContent = document.getElementById('signed-in-content');
-    const signInButton = document.getElementById('sign-in-button');
-    const signOutButton = document.getElementById('sign-out-button');
-    const userEmailSpan = document.getElementById('user-email');
-    const licenseSection = document.getElementById('license-section');
-    const licensedContent = document.getElementById('licensed-content');
-    const unlicensedContent = document.getElementById('unlicensed-content');
-    const purchaseButton = document.getElementById('purchase-button');
-
-    // Check initial auth state
-    await updateAuthUI();
-
-    // Listen for license updates from background script
-    chrome.runtime.onMessage.addListener((message) => {
-        if (message.type === 'LICENSE_UPDATED') {
-            updateAuthUI();
-        }
-    });
-
-    // Auth event listeners
-    signInButton.addEventListener('click', async () => {
-        const result = await authHandler.signIn();
-        if (result.success) {
-            await updateAuthUI();
-        } else {
-            showStatus('Sign in failed: ' + result.error, 'error');
-        }
-    });
-
-    signOutButton.addEventListener('click', async () => {
-        const result = await authHandler.signOut();
-        if (result.success) {
-            await updateAuthUI();
-        } else {
-            showStatus('Sign out failed: ' + result.error, 'error');
-        }
-    });
-
-    // Purchase button listener
-    purchaseButton.addEventListener('click', () => {
-        const width = 500;
-        const height = 600;
-        const left = (screen.width - width) / 2;
-        const top = (screen.height - height) / 2;
-
-        window.open(
-            chrome.runtime.getURL('payment.html'),
-            'POE Voice Sync Payment',
-            `width=${width},height=${height},left=${left},top=${top}`
-        );
-    });
-
-    async function updateAuthUI() {
-        const authState = await authHandler.getAuthState();
-
-        if (authState.isAuthenticated) {
-            signInContent.style.display = 'none';
-            signedInContent.style.display = 'block';
-            userEmailSpan.textContent = authState.userEmail;
-            licenseSection.style.display = 'block';
-
-            const licenseStatus = await checkLicenseStatus();
-            if (licenseStatus.isLicensed) {
-                licensedContent.style.display = 'block';
-                unlicensedContent.style.display = 'none';
-                form.style.display = 'block';
-            } else {
-                licensedContent.style.display = 'none';
-                unlicensedContent.style.display = 'block';
-                form.style.display = 'none';
-            }
-        } else {
-            signInContent.style.display = 'block';
-            signedInContent.style.display = 'none';
-            licenseSection.style.display = 'none';
-            form.style.display = 'none';
-        }
-    }
-
-    async function checkLicenseStatus() {
-        const authState = await authHandler.getAuthState();
-        if (!authState.isAuthenticated) {
-            return { isLicensed: false };
-        }
-
-        const licenseData = await licenseHandler.getLicense();
-        if (!licenseData.success || !licenseData.licenseKey) {
-            return { isLicensed: false };
-        }
-
-        const validation = await licenseHandler.validateLicenseKey(licenseData.licenseKey, authState.userEmail);
-        return { isLicensed: validation.success && validation.isValid };
-    }
-
-    function showStatus(message, type = 'success') {
-        const status = document.createElement('div');
-        status.textContent = message;
-        status.className = `status-message ${type}`;
-        form.appendChild(status);
-        setTimeout(() => status.remove(), 3000);
-    }
-
-    // Original popup.js functionality
+    // Load saved settings
     chrome.storage.sync.get(['apiKey', 'voice', 'volume', 'enabled'], async (data) => {
+        debug('Loading saved settings:', data);
+        
+        // Set API key and fetch voices
         if (data.apiKey) {
             apiKeyInput.value = data.apiKey;
             await fetchVoices(data.apiKey);
         }
 
+        // Set voice after voices are loaded
         if (data.voice) {
             setTimeout(() => {
                 voiceSelection.value = data.voice;
                 if (voiceSelection.selectedIndex === -1) {
+                    // If voice not found, select first available
                     voiceSelection.selectedIndex = 0;
+                    // Save the new selection
                     chrome.storage.sync.set({ voice: voiceSelection.value });
                 }
             }, 500);
         }
 
+        // Set volume
         if (data.volume !== undefined) {
             volumeSlider.value = data.volume;
+        } else {
+            volumeSlider.value = 0.7; // Default volume
         }
         updateVolumeLabel();
 
+        // Set auto-play
         if (data.enabled !== undefined) {
             enableSpeechCheckbox.checked = data.enabled;
+        } else {
+            enableSpeechCheckbox.checked = true; // Default enabled
         }
 
+        // Save initial settings if not set
         if (!data.apiKey || data.volume === undefined || data.enabled === undefined) {
             saveSettings();
         }
     });
 
+    function debug(message, data) {
+        console.log(`[POE Voice] ${message}`, data || '');
+    }
+
+    // Update volume label
     function updateVolumeLabel() {
         const value = Math.round(volumeSlider.value * 100);
         volumeLabel.textContent = `${value}%`;
     }
 
+    // Save all settings
     function saveSettings() {
         const settings = {
             apiKey: apiKeyInput.value.trim(),
@@ -159,10 +71,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             enabled: enableSpeechCheckbox.checked
         };
 
+        debug('Saving settings:', settings);
+        
         chrome.storage.sync.set(settings, () => {
             const status = document.createElement('div');
             status.textContent = 'Settings saved!';
-            status.className = 'status-message success';
+            status.style.cssText = 'color: green; margin-top: 10px; text-align: center;';
             form.appendChild(status);
             setTimeout(() => status.remove(), 2000);
         });
@@ -177,6 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     enableSpeechCheckbox.addEventListener('change', saveSettings);
     voiceSelection.addEventListener('change', saveSettings);
 
+    // Test voice button handler
     testButton.addEventListener('click', async () => {
         const apiKey = apiKeyInput.value.trim();
         if (!apiKey) {
@@ -214,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             audio.volume = volumeSlider.value;
             await audio.play();
             testStatus.textContent = ' Test successful!';
-
+            
         } catch (error) {
             console.error('Test failed:', error);
             testStatus.textContent = ' Test failed: ' + error.message;
@@ -224,11 +139,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Form submit handler
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         saveSettings();
     });
 
+    // Fetch available voices
     async function fetchVoices(apiKey) {
         try {
             const response = await fetch('https://api.elevenlabs.io/v1/voices', {
@@ -240,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-
+            
             voiceSelection.innerHTML = '';
             data.voices.forEach(voice => {
                 const option = document.createElement('option');
@@ -249,6 +166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 voiceSelection.appendChild(option);
             });
 
+            // Restore saved voice selection
             chrome.storage.sync.get(['voice'], (data) => {
                 if (data.voice) {
                     voiceSelection.value = data.voice;
@@ -261,6 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // Handle API key changes
     apiKeyInput.addEventListener('change', () => {
         const apiKey = apiKeyInput.value.trim();
         if (apiKey) {

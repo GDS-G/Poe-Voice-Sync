@@ -9,41 +9,7 @@
 <body>
     <div class="container">
         <h1>POE Voice Settings</h1>
-        
-        <!-- Auth Section -->
-        <div id="auth-section" class="auth-section">
-            <div id="sign-in-content" style="display: none;">
-                <p>Please sign in with Google to use this extension:</p>
-                <button id="sign-in-button" class="btn-primary">Sign in with Google</button>
-            </div>
-            
-            <div id="signed-in-content" style="display: none;">
-                <p>Signed in as: <span id="user-email"></span></p>
-                <button id="sign-out-button" class="btn-secondary">Sign Out</button>
-            </div>
-        </div>
-
-        <!-- License Status -->
-        <div id="license-section" class="license-section" style="display: none;">
-            <div id="unlicensed-content">
-                <p>Purchase a license to activate the extension:</p>
-                <div class="price-display">$19.99 USD</div>
-                <button id="purchase-button" class="btn-primary">Purchase License</button>
-                <div id="paypal-button-container" style="display: none; margin-top: 10px;"></div>
-            </div>
-            <div id="licensed-content" style="display: none;">
-                <p class="license-active">✓ License Active</p>
-            </div>
-        </div>
-
-        <!-- Loading Indicator -->
-        <div id="loading-indicator" class="loading-indicator" style="display: none;">
-            <div class="spinner"></div>
-            <p>Processing...</p>
-        </div>
-
-        <!-- Settings Form -->
-        <form id="settings-form" style="display: none;">
+        <form id="settings-form">
             <div class="form-group">
                 <label for="api-key">ElevenLabs API Key:</label>
                 <input 
@@ -100,13 +66,11 @@
                 <span class="volume-label">70%</span>
             </div>
 
-            <button type="submit" class="btn-save">Save Settings</button>
+            <button type="submit" class="save-button">Save Settings</button>
         </form>
 
         <div id="status-message"></div>
     </div>
-    <script type="module" src="auth.js"></script>
-    <script type="module" src="paypal.js"></script>
-    <script type="module" src="popup.js"></script>
+    <script src="popup.js"></script>
 </body>
 </html>

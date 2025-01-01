@@ -62,14 +62,14 @@ small {
     font-size: 12px;
 }
 
-    small a {
-        color: #3498db;
-        text-decoration: none;
-    }
+small a {
+    color: #3498db;
+    text-decoration: none;
+}
 
-        small a:hover {
-            text-decoration: underline;
-        }
+small a:hover {
+    text-decoration: underline;
+}
 
 .btn-save {
     width: 100%;
@@ -83,13 +83,13 @@ small {
     transition: background-color 0.2s;
 }
 
-    .btn-save:hover {
-        background-color: #2980b9;
-    }
+.btn-save:hover {
+    background-color: #2980b9;
+}
 
-    .btn-save:active {
-        background-color: #2472a4;
-    }
+.btn-save:active {
+    background-color: #2472a4;
+}
 
 /* Auth Section Styles */
 .auth-section {
@@ -119,9 +119,9 @@ small {
     transition: background-color 0.2s;
 }
 
-    .btn-primary:hover {
-        background-color: #357abd;
-    }
+.btn-primary:hover {
+    background-color: #357abd;
+}
 
 .btn-secondary {
     background-color: #6c757d;
@@ -134,9 +134,9 @@ small {
     transition: background-color 0.2s;
 }
 
-    .btn-secondary:hover {
-        background-color: #5a6268;
-    }
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
 
 #user-email {
     font-weight: 500;
@@ -173,13 +173,8 @@ small {
 }
 
 @keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .status-message {
@@ -190,17 +185,17 @@ small {
     font-size: 14px;
 }
 
-    .status-message.success {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-    }
+.status-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
 
-    .status-message.error {
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-    }
+.status-message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
 
 /* PayPal Button Container */
 #paypal-button-container {
@@ -224,12 +219,12 @@ input[type="range"] {
     border-radius: 2px;
 }
 
-    input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: #3498db;
-        cursor: pointer;
-        border: none;
-    }
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #3498db;
+    cursor: pointer;
+    border: none;
+}
