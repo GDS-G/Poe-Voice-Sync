@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>POE Voice Sync - Payment</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        .price {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        #paypal-button-container {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        #result-message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>POE Voice Sync License</h1>
+    <div class="price">$19.99 USD</div>
+    <div id="paypal-button-container"></div>
+    <p id="result-message"></p>
+
+    <script src="https://www.paypal.com/sdk/js?client-id=AWXwlfbfBOYSDikaxv7FchKUDAcTo7ObFB-qT3GEraxUnu4F6YWQPo3Y4sSAwXAht8syBpNFFV2HlvYh&currency=USD&components=buttons&enable-funding=venmo,paylater,card"
+            data-sdk-integration-source="developer-studio"></script>
+    <script src="app.js"></script>
+</body>
+</html>
