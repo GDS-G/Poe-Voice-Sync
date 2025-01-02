@@ -3,17 +3,17 @@ function playAudio(blob) {
     return new Promise((resolve, reject) => {
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
-        
+
         audio.onended = () => {
             URL.revokeObjectURL(url);
             resolve();
         };
-        
+
         audio.onerror = (error) => {
             URL.revokeObjectURL(url);
             reject(error);
         };
-        
+
         audio.play().catch(reject);
     });
 }
@@ -24,7 +24,7 @@ async function textToSpeech(text) {
         // Get settings from storage
         const data = await chrome.storage.sync.get(['apiKey', 'voice', 'stability', 'similarity']);
         const apiKey = data.apiKey;
-        
+
         if (!apiKey) {
             throw new Error("API key not found. Please set your ElevenLabs API key in the extension settings.");
         }
@@ -34,7 +34,7 @@ async function textToSpeech(text) {
         const similarity = data.similarity || 0.75;
 
         console.log('Making request to ElevenLabs...');
-        
+
         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
             method: 'POST',
             headers: {
@@ -65,7 +65,16 @@ async function textToSpeech(text) {
     }
 }
 
-// Listen for messages from content script
+// Generate a license key
+async function generateLicenseKey(userEmail) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(userEmail + 'test_license_key_2024');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
+}
+
+// Listen for messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("Message received:", request);
 
@@ -76,11 +85,73 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             })
             .catch((error) => {
                 console.error("Error in text-to-speech:", error);
-                sendResponse({ 
-                    status: "error", 
-                    message: error.message || "Error converting text to speech" 
+                sendResponse({
+                    status: "error",
+                    message: error.message || "Error converting text to speech"
                 });
             });
         return true; // Keep message channel open for async response
     }
+
+    // Handle payment completion
+    if (request.type === "PAYMENT_COMPLETE") {
+        handlePaymentComplete(request.orderId)
+            .then(() => {
+                chrome.runtime.sendMessage({
+                    type: 'LICENSE_UPDATED'
+                }).catch(() => {/* Ignore errors if no listeners */ });
+
+                sendResponse({ status: "success" });
+            })
+            .catch((error) => {
+                console.error("Error processing payment:", error);
+                sendResponse({
+                    status: "error",
+                    message: error.message
+                });
+            });
+        return true;
+    }
+
+    // Handle license check
+    if (request.type === "CHECK_LICENSE") {
+        chrome.storage.sync.get(['licenseKey', 'licensedEmail'], (data) => {
+            sendResponse({
+                isActivated: !!(data.licenseKey && data.licensedEmail)
+            });
+        });
+        return true;
+    }
 });
+
+// Handle payment completion
+async function handlePaymentComplete(orderId) {
+    try {
+        // Get user email
+        const data = await chrome.storage.sync.get(['userEmail']);
+        if (!data.userEmail) {
+            throw new Error('User email not found');
+        }
+
+        // Generate and store license
+        const licenseKey = await generateLicenseKey(data.userEmail);
+        await chrome.storage.sync.set({
+            licenseKey,
+            orderId,
+            purchaseDate: Date.now()
+        });
+
+        // Notify any open popups
+        chrome.runtime.sendMessage({
+            type: 'LICENSE_UPDATED',
+            licenseKey
+        }).catch(() => {
+            // Ignore errors if no listeners
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error handling payment:', error);
+        throw error;
+    }
+}
