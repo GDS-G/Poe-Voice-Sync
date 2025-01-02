@@ -9,9 +9,22 @@ let currentButton = null;
 let initialPageLoad = true;
 let isPlaying = false;
 let lastScrollPosition = window.scrollY;
+let currentSettings = null;
 const processedMessageIds = new Set();
 const messageObservers = new Map();
 const messageTimestamps = new Map();
+
+// Function to get fresh settings
+async function getSettings() {
+    try {
+        const settings = await chrome.storage.sync.get(['apiKey', 'voice', 'volume', 'enabled']);
+        currentSettings = settings;
+        return settings;
+    } catch (error) {
+        console.error('Error getting settings:', error);
+        return null;
+    }
+}
 
 // Add styles for the voice button
 function injectStyles() {
@@ -85,68 +98,6 @@ function injectStyles() {
     debug('Styles injected');
 }
 
-// Check if a message is from scroll loading
-function isFromScroll(messageElement) {
-    const rect = messageElement.getBoundingClientRect();
-    return rect.top < 0 || Math.abs(window.scrollY - lastScrollPosition) > 50;
-}
-
-// Function to observe message content for streaming
-function observeMessageContent(messageElement, contentElement, onComplete) {
-    let lastContent = contentElement.textContent;
-    let unchanged = 0;
-    let observerId;
-
-    const checkContent = () => {
-        const currentContent = contentElement.textContent;
-        
-        if (currentContent === lastContent) {
-            unchanged++;
-            if (unchanged >= 3) { // Message has remained unchanged for 3 checks
-                debug('Message content stabilized');
-                clearInterval(observerId);
-                messageObservers.delete(messageElement);
-                onComplete(currentContent);
-            }
-        } else {
-            unchanged = 0;
-            lastContent = currentContent;
-        }
-    };
-
-    observerId = setInterval(checkContent, 500); // Check every 500ms
-    messageObservers.set(messageElement, observerId);
-
-    // Safety cleanup after 10 seconds
-    setTimeout(() => {
-        if (messageObservers.has(messageElement)) {
-            clearInterval(messageObservers.get(messageElement));
-            messageObservers.delete(messageElement);
-            onComplete(contentElement.textContent);
-        }
-    }, 10000);
-}
-
-// Function to remove duplicate buttons
-function removeDuplicateButtons(messageElement) {
-    const buttons = messageElement.querySelectorAll('.tts-button');
-    if (buttons.length > 1) {
-        debug(`Found ${buttons.length} buttons in message, removing duplicates`);
-        // Keep the first button, remove the rest
-        for (let i = 1; i < buttons.length; i++) {
-            buttons[i].remove();
-        }
-    }
-}
-
-// Function to clean up all duplicate buttons in the chat
-function cleanupDuplicateButtons() {
-    const messages = document.querySelectorAll('.ChatMessage_chatMessage__xkgHx');
-    messages.forEach(message => {
-        removeDuplicateButtons(message);
-    });
-}
-
 // Stop current audio if playing
 function stopCurrentAudio() {
     if (currentAudio) {
@@ -178,93 +129,8 @@ function showError(button, message) {
     setTimeout(() => tooltip.style.display = 'none', 5000);
 }
 
-// Add voice button to message
-async function addVoiceButton(messageElement, isNewMessage = false) {
-    // Find message content and verify it's a bot message
-    const messageBubble = messageElement.querySelector('.Message_leftSideMessageBubble__VPdk6');
-    const messageContent = messageBubble?.querySelector('.Markdown_markdownContainer__Tz3HQ');
-    
-    if (!messageBubble || !messageContent || messageElement.querySelector('.tts-button')) {
-        return;
-    }
-
-    // Get the message ID
-    const messageId = messageElement.getAttribute('data-message-id') || 
-                     messageElement.id || 
-                     `msg-${Date.now()}-${Math.random()}`;
-
-    // Record timestamp for this message
-    if (!messageTimestamps.has(messageId)) {
-        messageTimestamps.set(messageId, Date.now());
-    }
-
-    // Check if this is truly a new message
-    const isTrulyNew = !initialPageLoad && 
-                      isNewMessage && 
-                      !processedMessageIds.has(messageId) &&
-                      !isFromScroll(messageElement);
-
-    // Track this message
-    processedMessageIds.add(messageId);
-
-    debug(`Adding voice button to message. Is truly new: ${isTrulyNew}`);
-
-    // Get the actions row or create one
-    let actionsRow = messageElement.querySelector('.Message_row__ug_UU');
-    if (!actionsRow) {
-        actionsRow = document.createElement('div');
-        actionsRow.className = 'Message_row__ug_UU';
-        messageBubble.parentNode.appendChild(actionsRow);
-    }
-
-    // Create button
-    const button = document.createElement('button');
-    button.className = 'tts-button';
-    button.title = 'Read message aloud (click again to stop)';
-    
-    // Create icon
-    const icon = document.createElement('img');
-    icon.src = chrome.runtime.getURL('icons/icon48.png');
-    icon.alt = 'Text to speech';
-    button.appendChild(icon);
-
-    // Get settings
-    const settings = await chrome.storage.sync.get(['apiKey', 'voice', 'volume', 'enabled']);
-
-    // Add click handler
-    button.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Toggle playback
-        if (button === currentButton) {
-            stopCurrentAudio();
-        } else {
-            const text = messageContent.textContent.trim();
-            await playMessage(text, button, settings);
-        }
-    });
-
-    // Add button after other action buttons
-    actionsRow.appendChild(button);
-    
-    // Remove any duplicate buttons after adding new one
-    setTimeout(() => removeDuplicateButtons(messageElement), 100);
-
-    // Auto-play only if it's truly a new message and auto-play is enabled
-    if (isTrulyNew && settings.enabled) {
-        debug('Waiting for message to complete before auto-playing');
-        observeMessageContent(messageElement, messageContent, async (finalText) => {
-            if (!isPlaying && messageTimestamps.get(messageId) > Date.now() - 5000) {
-                debug('Auto-playing completed message');
-                await playMessage(finalText.trim(), button, settings);
-            }
-        });
-    }
-}
-
 // Play message using TTS
-async function playMessage(text, button, settings) {
+async function playMessage(text, button) {
     if (!text) {
         debug('No text to play');
         return;
@@ -273,6 +139,14 @@ async function playMessage(text, button, settings) {
     if (isPlaying) {
         debug('Already playing, stopping current audio');
         stopCurrentAudio();
+    }
+
+    // Get fresh settings before each playback
+    const settings = await getSettings();
+    if (!settings) {
+        debug('Could not get settings');
+        showError(button, 'Could not get settings');
+        return;
     }
 
     if (!settings.apiKey) {
@@ -317,10 +191,10 @@ async function playMessage(text, button, settings) {
         debug('Got response from TTS API');
         const blob = await response.blob();
         const audioUrl = URL.createObjectURL(blob);
-        
+
         const audio = new Audio(audioUrl);
         audio.volume = settings.volume || 0.7;
-        
+
         currentAudio = audio;
 
         audio.onended = () => {
@@ -344,7 +218,7 @@ async function playMessage(text, button, settings) {
 
         await audio.play();
         debug('Playback started successfully');
-        
+
     } catch (error) {
         console.error('TTS error:', error);
         showError(button, error.message);
@@ -352,6 +226,143 @@ async function playMessage(text, button, settings) {
         currentButton = null;
         isPlaying = false;
     }
+}
+
+// Add voice button to message
+async function addVoiceButton(messageElement, isNewMessage = false) {
+    // Find message content and verify it's a bot message
+    const messageBubble = messageElement.querySelector('.Message_leftSideMessageBubble__VPdk6');
+    const messageContent = messageBubble?.querySelector('.Markdown_markdownContainer__Tz3HQ');
+
+    if (!messageBubble || !messageContent || messageElement.querySelector('.tts-button')) {
+        return;
+    }
+
+    // Get the message ID
+    const messageId = messageElement.getAttribute('data-message-id') ||
+        messageElement.id ||
+        `msg-${Date.now()}-${Math.random()}`;
+
+    // Record timestamp for this message
+    if (!messageTimestamps.has(messageId)) {
+        messageTimestamps.set(messageId, Date.now());
+    }
+
+    // Check if this is truly a new message
+    const isTrulyNew = !initialPageLoad &&
+        isNewMessage &&
+        !processedMessageIds.has(messageId) &&
+        !isFromScroll(messageElement);
+
+    // Track this message
+    processedMessageIds.add(messageId);
+
+    debug(`Adding voice button to message. Is truly new: ${isTrulyNew}`);
+
+    // Get the actions row or create one
+    let actionsRow = messageElement.querySelector('.Message_row__ug_UU');
+    if (!actionsRow) {
+        actionsRow = document.createElement('div');
+        actionsRow.className = 'Message_row__ug_UU';
+        messageBubble.parentNode.appendChild(actionsRow);
+    }
+
+    // Create button
+    const button = document.createElement('button');
+    button.className = 'tts-button';
+    button.title = 'Read message aloud (click again to stop)';
+
+    // Create icon
+    const icon = document.createElement('img');
+    icon.src = chrome.runtime.getURL('icons/icon48.png');
+    icon.alt = 'Text to speech';
+    button.appendChild(icon);
+
+    // Add click handler
+    button.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Toggle playback
+        if (button === currentButton) {
+            stopCurrentAudio();
+        } else {
+            const text = messageContent.textContent.trim();
+            await playMessage(text, button);
+        }
+    });
+
+    // Add button after other action buttons
+    actionsRow.appendChild(button);
+
+    // Remove any duplicate buttons after adding new one
+    setTimeout(() => removeDuplicateButtons(messageElement), 100);
+
+    // Auto-play only if it's truly a new message and auto-play is enabled
+    const settings = await getSettings();
+    if (isTrulyNew && settings?.enabled) {
+        debug('Waiting for message to complete before auto-playing');
+        observeMessageContent(messageElement, messageContent, async (finalText) => {
+            if (!isPlaying && messageTimestamps.get(messageId) > Date.now() - 5000) {
+                debug('Auto-playing completed message');
+                await playMessage(finalText.trim(), button);
+            }
+        });
+    }
+}
+
+// Function to remove duplicate buttons
+function removeDuplicateButtons(messageElement) {
+    const buttons = messageElement.querySelectorAll('.tts-button');
+    if (buttons.length > 1) {
+        debug(`Found ${buttons.length} buttons in message, removing duplicates`);
+        // Keep the first button, remove the rest
+        for (let i = 1; i < buttons.length; i++) {
+            buttons[i].remove();
+        }
+    }
+}
+
+// Check if a message is from scroll loading
+function isFromScroll(messageElement) {
+    const rect = messageElement.getBoundingClientRect();
+    return rect.top < 0 || Math.abs(window.scrollY - lastScrollPosition) > 50;
+}
+
+// Function to observe message content for streaming
+function observeMessageContent(messageElement, contentElement, onComplete) {
+    let lastContent = contentElement.textContent;
+    let unchanged = 0;
+    let observerId;
+
+    const checkContent = () => {
+        const currentContent = contentElement.textContent;
+
+        if (currentContent === lastContent) {
+            unchanged++;
+            if (unchanged >= 3) { // Message has remained unchanged for 3 checks
+                debug('Message content stabilized');
+                clearInterval(observerId);
+                messageObservers.delete(messageElement);
+                onComplete(currentContent);
+            }
+        } else {
+            unchanged = 0;
+            lastContent = currentContent;
+        }
+    };
+
+    observerId = setInterval(checkContent, 500); // Check every 500ms
+    messageObservers.set(messageElement, observerId);
+
+    // Safety cleanup after 10 seconds
+    setTimeout(() => {
+        if (messageObservers.has(messageElement)) {
+            clearInterval(messageObservers.get(messageElement));
+            messageObservers.delete(messageElement);
+            onComplete(contentElement.textContent);
+        }
+    }, 10000);
 }
 
 // Process all messages in the chat
@@ -376,15 +387,10 @@ function processMessages() {
     }, 1000);
 }
 
-// Listen for scroll events
-window.addEventListener('scroll', () => {
-    lastScrollPosition = window.scrollY;
-});
-
 // Observe chat for new messages
 function observeChat() {
     debug('Setting up chat observer');
-    
+
     const observer = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
             // Only process childList mutations
@@ -398,7 +404,7 @@ function observeChat() {
                         debug('New message node detected directly');
                         addVoiceButton(node, true);
                     }
-                    
+
                     // Check for messages inside the added node
                     const messages = node.querySelectorAll('.ChatMessage_chatMessage__xkgHx');
                     if (messages.length > 0) {
@@ -436,10 +442,20 @@ function observeChat() {
     processMessages();
 }
 
+// Clean up all duplicate buttons in the chat
+function cleanupDuplicateButtons() {
+    const messages = document.querySelectorAll('.ChatMessage_chatMessage__xkgHx');
+    messages.forEach(message => {
+        removeDuplicateButtons(message);
+    });
+}
+
 // Initialize extension
-function initialize() {
+// Initialize extension
+async function initialize() {
     debug('Initializing extension');
     injectStyles();
+    await getSettings(); // Get initial settings
     observeChat();
 
     // Add ESC key handler
@@ -448,14 +464,23 @@ function initialize() {
             stopCurrentAudio();
         }
     });
+
+    // Listen for messages from popup
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === 'SETTINGS_UPDATED') {
+            debug('Settings updated, refreshing settings and stopping current audio');
+            stopCurrentAudio();
+            getSettings(); // Refresh settings
+            sendResponse({ status: 'acknowledged' });
+        }
+        return true; // Keep message channel open
+    });
 }
 
-// Start once DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialize);
-} else {
-    initialize();
-}
+// Listen for scroll events
+window.addEventListener('scroll', () => {
+    lastScrollPosition = window.scrollY;
+});
 
 // Handle navigation
 window.addEventListener('popstate', () => {
@@ -463,6 +488,7 @@ window.addEventListener('popstate', () => {
     initialPageLoad = true;  // Reset page load state
     isPlaying = false;
     lastScrollPosition = window.scrollY;
+    currentSettings = null; // Reset settings
 
     // Clean up any existing message observers
     for (let [_, observerId] of messageObservers) {
@@ -486,3 +512,10 @@ window.addEventListener('unload', () => {
     messageObservers.clear();
     messageTimestamps.clear();
 });
+
+// Start once DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize);
+} else {
+    initialize();
+}
