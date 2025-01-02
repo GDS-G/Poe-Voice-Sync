@@ -8,7 +8,8 @@
         "scripting",
         "activeTab",
         "identity",
-        "identity.email"
+        "identity.email",
+        "tabs"
     ],
     "host_permissions": [
         "*://*.poe.com/*",

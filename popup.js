@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         volumeLabel.textContent = `${value}%`;
     }
 
-    function saveSettings() {
+    async function saveSettings() {
         const settings = {
             apiKey: apiKeyInput.value.trim(),
             voice: voiceSelection.value,
@@ -215,9 +215,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             enabled: enableSpeechCheckbox.checked
         };
 
-        chrome.storage.sync.set(settings, () => {
-            showStatus('Settings saved!', 'success');
+        await chrome.storage.sync.set(settings);
+
+        // Notify all tabs about the settings change
+        const tabs = await chrome.tabs.query({ url: "*://*.poe.com/*" });
+        tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {
+                type: 'SETTINGS_UPDATED',
+                settings: settings
+            }).catch(() => {
+                // Ignore errors for inactive tabs
+            });
         });
+
+        showStatus('Settings saved!', 'success');
     }
 
     // Event listeners
