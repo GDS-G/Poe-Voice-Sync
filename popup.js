@@ -1,6 +1,9 @@
 import authHandler from './auth.js';
 import licenseHandler from './license.js';
 
+// Make licenseHandler available in console for debugging
+window.debugLicenseHandler = licenseHandler;
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Get all DOM elements
     const form = document.getElementById('settings-form');
