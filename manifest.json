@@ -6,26 +6,41 @@
     "permissions": [
         "storage",
         "scripting",
-        "activeTab"
+        "activeTab",
+        "identity",
+        "identity.email"
     ],
     "host_permissions": [
         "*://*.poe.com/*",
-        "https://api.elevenlabs.io/*"
+        "https://api.elevenlabs.io/*",
+        "https://gds-g.github.io/*"
     ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
+    },
+    "oauth2": {
+        "client_id": "727891588328-oh57b7j5ebdf5289l84aorm4n5p7knll.apps.googleusercontent.com",
+        "scopes": [
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile"
+        ]
+    },
     "background": {
         "service_worker": "background.js"
     },
     "content_scripts": [
         {
-            "matches": ["*://*.poe.com/*"],
-            "js": ["content.js"],
+            "matches": [ "*://*.poe.com/*" ],
+            "js": [ "content.js" ],
             "run_at": "document_end"
         }
     ],
-    "web_accessible_resources": [{
-        "resources": ["icons/*"],
-        "matches": ["*://*.poe.com/*"]
-    }],
+    "web_accessible_resources": [
+        {
+            "resources": [ "icons/*" ],
+            "matches": [ "*://*.poe.com/*" ]
+        }
+    ],
     "action": {
         "default_popup": "popup.html",
         "default_icon": {
