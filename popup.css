@@ -11,10 +11,16 @@ body {
     max-width: 100%;
 }
 
-h1 {
-    font-size: 1.5rem;
-    margin: 0 0 20px 0;
-    color: #2c3e50;
+.logo-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.header-logo {
+    max-width: 200px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
 }
 
 .form-group {
@@ -92,69 +98,193 @@ small {
     }
 
 /* Auth Section Styles */
-.auth-section {
-    margin-bottom: 20px;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 4px;
+#auth-section {
+    margin: 15px 0 15px 0;
     text-align: center;
 }
 
-.license-section {
-    margin-bottom: 20px;
-    padding: 15px;
-    background: #e8f4fd;
-    border-radius: 4px;
+#sign-in-content,
+#signed-in-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.sign-out-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+    .sign-out-button:hover {
+        opacity: 0.8;
+    }
+
+.sign-out-icon {
+    width: 128px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.license-status-fade {
+    background: linear-gradient(90deg, rgba(232, 244, 253, 0) 0%, rgba(232, 244, 253, 1) 20%, rgba(232, 244, 253, 1) 80%, rgba(232, 244, 253, 0) 100% );
+    padding: 4px 0;
+    margin: 4px 0;
     text-align: center;
-}
-
-.btn-primary {
-    background-color: #4285f4;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.2s;
-}
-
-    .btn-primary:hover {
-        background-color: #357abd;
-    }
-
-.btn-secondary {
-    background-color: #6c757d;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9em;
-    transition: background-color 0.2s;
-}
-
-    .btn-secondary:hover {
-        background-color: #5a6268;
-    }
-
-#user-email {
-    font-weight: 500;
-    color: #2c3e50;
 }
 
 .license-active {
     color: #28a745;
     font-weight: 500;
     margin: 0;
+    line-height: 1.2;
+}
+
+#license-section {
+    margin-bottom: 10px;
+    text-align: center;
 }
 
 .price-display {
-    font-size: 1.5em;
-    font-weight: bold;
+    font-size: 1.2em;
+    font-weight: 500;
     color: #2c3e50;
-    margin: 10px 0;
+    margin: 5px 0 10px 0;
 }
+
+.paypal-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-block;
+}
+
+    .paypal-button:hover {
+        opacity: 0.9;
+    }
+
+/* Settings Form */
+#settings-form {
+    margin-top: 0;
+}
+
+.form-group:first-child {
+    margin-top: 0;
+}
+
+/* Google Sign In Button Styles */
+.gsi-material-button {
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -webkit-appearance: none;
+    background-color: #131314;
+    background-image: none;
+    border: 1px solid #747775;
+    -webkit-border-radius: 20px;
+    border-radius: 20px;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    color: #e3e3e3;
+    cursor: pointer;
+    font-family: 'Roboto', arial, sans-serif;
+    font-size: 14px;
+    height: 40px;
+    letter-spacing: 0.25px;
+    outline: none;
+    overflow: hidden;
+    padding: 0 12px;
+    position: relative;
+    text-align: center;
+    -webkit-transition: background-color .218s, border-color .218s, box-shadow .218s;
+    transition: background-color .218s, border-color .218s, box-shadow .218s;
+    vertical-align: middle;
+    white-space: nowrap;
+    width: auto;
+    max-width: 400px;
+    min-width: min-content;
+    border-color: #8e918f;
+}
+
+    .gsi-material-button .gsi-material-button-icon {
+        height: 20px;
+        margin-right: 12px;
+        min-width: 20px;
+        width: 20px;
+    }
+
+    .gsi-material-button .gsi-material-button-content-wrapper {
+        -webkit-align-items: center;
+        align-items: center;
+        display: flex;
+        -webkit-flex-direction: row;
+        flex-direction: row;
+        -webkit-flex-wrap: nowrap;
+        flex-wrap: nowrap;
+        height: 100%;
+        justify-content: space-between;
+        position: relative;
+        width: 100%;
+    }
+
+    .gsi-material-button .gsi-material-button-contents {
+        -webkit-flex-grow: 1;
+        flex-grow: 1;
+        font-family: 'Roboto', arial, sans-serif;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: top;
+    }
+
+    .gsi-material-button .gsi-material-button-state {
+        -webkit-transition: opacity .218s;
+        transition: opacity .218s;
+        bottom: 0;
+        left: 0;
+        opacity: 0;
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+
+    .gsi-material-button:disabled {
+        cursor: default;
+        background-color: #13131461;
+        border-color: #8e918f1f;
+    }
+
+        .gsi-material-button:disabled .gsi-material-button-state {
+            background-color: #e3e3e31f;
+        }
+
+        .gsi-material-button:disabled .gsi-material-button-contents {
+            opacity: 38%;
+        }
+
+        .gsi-material-button:disabled .gsi-material-button-icon {
+            opacity: 38%;
+        }
+
+    .gsi-material-button:not(:disabled):active .gsi-material-button-state,
+    .gsi-material-button:not(:disabled):focus .gsi-material-button-state {
+        background-color: white;
+        opacity: 12%;
+    }
+
+    .gsi-material-button:not(:disabled):hover {
+        -webkit-box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .30), 0 1px 3px 1px rgba(60, 64, 67, .15);
+        box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .30), 0 1px 3px 1px rgba(60, 64, 67, .15);
+    }
+
+        .gsi-material-button:not(:disabled):hover .gsi-material-button-state {
+            background-color: white;
+            opacity: 8%;
+        }
 
 /* Loading Indicator */
 .loading-indicator {
@@ -201,12 +331,6 @@ small {
         color: #721c24;
         border: 1px solid #f5c6cb;
     }
-
-/* PayPal Button Container */
-#paypal-button-container {
-    margin-top: 15px;
-    min-height: 35px;
-}
 
 /* Accessibility improvements */
 input:focus,
