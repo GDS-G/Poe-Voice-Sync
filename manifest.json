@@ -5,8 +5,6 @@
     "description": "Sync ElevenLabs voice models with POE AI chatbot responses.",
     "permissions": [
         "storage",
-        "scripting",
-        "activeTab",
         "identity",
         "identity.email",
         "tabs"
