@@ -50,11 +50,22 @@
 </head>
 <body>
     <div class="logo-container">
-        <img src="chrome-extension://__MSG_@@extension_id__/icons/logo.png" alt="POE Voice Sync" class="logo">
+        <img id="logo" alt="POE Voice Sync" class="logo">
     </div>
     <div class="price">Activate Extension for $19.99 USD</div>
     <div id="paypal-button-container"></div>
     <p id="result-message"></p>
+
+    <script>
+        // Get the extension ID from the URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const extId = urlParams.get('extId');
+        
+        // Set the logo source using the extension ID
+        if (extId) {
+            document.getElementById('logo').src = `chrome-extension://${extId}/icons/logo.png`;
+        }
+    </script>
 
     <script src="https://www.paypal.com/sdk/js?client-id=AWXwlfbfBOYSDikaxv7FchKUDAcTo7ObFB-qT3GEraxUnu4F6YWQPo3Y4sSAwXAht8syBpNFFV2HlvYh&currency=USD&components=buttons&enable-funding=venmo,paylater,card"
             data-sdk-integration-source="developer-studio"></script>
