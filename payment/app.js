@@ -31,15 +31,14 @@ window.paypal
                 const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
 
                 if (transaction?.status === "COMPLETED") {
-                    // Store payment info in chrome.storage
-                    await chrome.storage.local.set({
-                        paymentComplete: true,
-                        paymentData: {
+                    // Send message back to extension
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.postMessage({
+                            type: 'PAYMENT_COMPLETE',
                             orderId: orderData.id,
-                            transactionId: transaction.id,
-                            timestamp: Date.now()
-                        }
-                    });
+                            transactionId: transaction.id
+                        }, '*');
+                    }
 
                     resultMessage(`
                         Payment successful!<br>
@@ -49,14 +48,10 @@ window.paypal
 
                     // Close window after delay
                     setTimeout(() => {
-                        // Open the extension popup after payment
-                        chrome.runtime.sendMessage({
-                            type: 'OPEN_POPUP_AFTER_PAYMENT'
-                        }).catch(() => {
-                            // Ignore any errors
-                        });
                         window.close();
-                    }, 2000);
+                    }, 3000);
+                } else if (transaction?.status === "INSTRUMENT_DECLINED") {
+                    return actions.restart();
                 } else {
                     throw new Error(`Transaction status: ${transaction?.status}`);
                 }
