@@ -1,7 +1,7 @@
-function resultMessage(message, isError = false) {
+// app.js
+function resultMessage(message) {
     const messageElement = document.getElementById('result-message');
     messageElement.innerHTML = message;
-    messageElement.className = isError ? 'error' : 'success';
 }
 
 window.paypal
@@ -13,67 +13,59 @@ window.paypal
             label: "paypal",
         },
 
-        async createOrder() {
-            try {
-                const order = await paypal.createOrder({
-                    intent: "CAPTURE",
-                    purchase_units: [{
-                        amount: {
-                            currency_code: "USD",
-                            value: "19.99"
-                        },
-                        description: "POE Voice Sync License"
-                    }]
-                });
-
-                return order.id;
-            } catch (error) {
-                console.error(error);
-                resultMessage(`Could not initiate PayPal Checkout...<br><br>${error}`, true);
-            }
+        createOrder: function(data, actions) {
+            return actions.order.create({
+                purchase_units: [{
+                    description: "POE Voice Sync License",
+                    amount: {
+                        currency_code: "USD",
+                        value: "19.99"
+                    }
+                }]
+            });
         },
 
-        async onApprove(data, actions) {
+        onApprove: async function(data, actions) {
             try {
                 const orderData = await actions.order.capture();
-
-                // Handle different transaction states
-                const transaction =
-                    orderData?.purchase_units?.[0]?.payments?.captures?.[0] ||
-                    orderData?.purchase_units?.[0]?.payments?.authorizations?.[0];
+                const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
 
                 if (transaction?.status === "COMPLETED") {
-                    // Send message to extension
+                    // Send message to parent window (Chrome extension)
                     window.opener.postMessage({
                         type: 'PAYMENT_COMPLETE',
                         orderId: orderData.id,
                         transactionId: transaction.id
                     }, '*');
 
-                    // Close window immediately after payment
-                    window.close();
+                    resultMessage(`
+                        Payment successful!<br>
+                        Transaction ID: ${transaction.id}<br>
+                        Processing license activation...
+                    `);
 
-                } else if (transaction?.status === "INSTRUMENT_DECLINED") {
-                    return actions.restart();
+                    // Close window after delay
+                    setTimeout(() => {
+                        window.close();
+                    }, 3000);
                 } else {
-                    throw new Error(`Unexpected transaction status: ${transaction?.status}`);
+                    throw new Error(`Transaction status: ${transaction?.status}`);
                 }
-
             } catch (error) {
                 console.error(error);
                 resultMessage(`
-                    Sorry, your transaction could not be processed...<br><br>
+                    Transaction failed:<br>
                     ${error.message || error}
-                `, true);
+                `);
             }
         },
 
-        onError(error) {
-            console.error('PayPal error:', error);
+        onError: function(err) {
+            console.error(err);
             resultMessage(`
-                PayPal checkout error:<br><br>
-                ${error.message || error}
-            `, true);
+                Payment Error:<br>
+                ${err.message || err}
+            `);
         }
     })
     .render("#paypal-button-container");
