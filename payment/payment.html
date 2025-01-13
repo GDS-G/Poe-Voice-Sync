@@ -14,6 +14,17 @@
             margin: 0;
             padding: 20px;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #ffffff;
+        }
+
+        .logo-container {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .logo {
+            max-width: 200px;
+            height: auto;
         }
 
         h1 {
@@ -40,10 +51,21 @@
     </style>
 </head>
 <body>
-    <h1>POE Voice Sync License</h1>
-    <div class="price">$19.99 USD</div>
+    <div class="logo-container">
+        <img id="extension-logo" class="logo" alt="POE Voice Sync">
+    </div>
+    <div class="price">Activate Extension for $19.99 USD</div>
     <div id="paypal-button-container"></div>
     <p id="result-message"></p>
+
+    <script>
+        // Set logo source using extension ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const extId = urlParams.get('extId');
+        if (extId) {
+            document.getElementById('extension-logo').src = `chrome-extension://${extId}/icons/logo.png`;
+        }
+    </script>
 
     <script src="https://www.paypal.com/sdk/js?client-id=AWXwlfbfBOYSDikaxv7FchKUDAcTo7ObFB-qT3GEraxUnu4F6YWQPo3Y4sSAwXAht8syBpNFFV2HlvYh&currency=USD&components=buttons&enable-funding=venmo,paylater,card"
             data-sdk-integration-source="developer-studio"></script>
