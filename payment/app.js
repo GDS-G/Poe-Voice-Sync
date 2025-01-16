@@ -31,25 +31,25 @@ window.paypal
                 const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
 
                 if (transaction?.status === "COMPLETED") {
-                    // Send message back to extension
-                    if (window.opener && !window.opener.closed) {
-                        window.opener.postMessage({
-                            type: 'PAYMENT_COMPLETE',
-                            orderId: orderData.id,
-                            transactionId: transaction.id
-                        }, '*');
-                    }
-
                     resultMessage(`
                         Payment successful!<br>
                         Transaction ID: ${transaction.id}<br>
                         Processing license activation...
                     `);
 
-                    // Close window after delay
-                    setTimeout(() => {
-                        window.close();
-                    }, 3000);
+                    // Send message to parent window (Chrome extension)
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            type: 'PAYMENT_COMPLETE',
+                            orderId: orderData.id,
+                            transactionId: transaction.id
+                        }, '*');
+
+                        // Wait a bit before closing to ensure message is sent
+                        setTimeout(() => {
+                            window.close();
+                        }, 3000);
+                    }
                 } else if (transaction?.status === "INSTRUMENT_DECLINED") {
                     return actions.restart();
                 } else {
