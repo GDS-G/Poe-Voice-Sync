@@ -4,6 +4,17 @@ function resultMessage(message) {
     messageElement.innerHTML = message;
 }
 
+// Function to store payment data in localStorage
+function storePaymentData(orderId, transactionId) {
+    const paymentData = {
+        type: 'PAYMENT_COMPLETE',
+        orderId: orderId,
+        transactionId: transactionId,
+        timestamp: Date.now()
+    };
+    localStorage.setItem('poeVoiceSyncPayment', JSON.stringify(paymentData));
+}
+
 window.paypal
     .Buttons({
         style: {
@@ -31,43 +42,35 @@ window.paypal
                 const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
 
                 if (transaction?.status === "COMPLETED") {
-                    // Show success message first
                     resultMessage(`
                         Payment successful!<br>
                         Transaction ID: ${transaction.id}<br>
                         Processing license activation...
                     `);
 
-                    // Get extension ID from URL
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const extId = urlParams.get('extId');
+                    // Try to use window.opener first
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.postMessage({
+                            type: 'PAYMENT_COMPLETE',
+                            orderId: orderData.id,
+                            transactionId: transaction.id
+                        }, '*');
 
-                    if (!extId) {
-                        throw new Error('Extension ID not found');
-                    }
+                        // Store data in localStorage as backup
+                        storePaymentData(orderData.id, transaction.id);
 
-                    // Send message directly to the extension using Chrome runtime
-                    chrome.runtime.sendMessage(extId, {
-                        type: 'PAYMENT_COMPLETE',
-                        orderId: orderData.id,
-                        transactionId: transaction.id
-                    }, response => {
-                        console.log('Message response:', response);
-                        if (chrome.runtime.lastError) {
-                            console.error('Error sending message:', chrome.runtime.lastError);
-                            resultMessage(`
-                                Error activating license.<br>
-                                Please close this window and restart the extension.
-                            `);
-                            return;
-                        }
-
-                        // Close window after successful message
+                        // Close the window after a delay
                         setTimeout(() => {
                             window.close();
-                        }, 3000);
-                    });
-
+                        }, 2000);
+                    } else {
+                        // If window.opener is not available, store in localStorage and show message
+                        storePaymentData(orderData.id, transaction.id);
+                        resultMessage(`
+                            Payment successful!<br>
+                            Please close this window and click the extension icon to complete activation.
+                        `);
+                    }
                 } else if (transaction?.status === "INSTRUMENT_DECLINED") {
                     return actions.restart();
                 } else {
