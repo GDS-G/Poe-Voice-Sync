@@ -31,32 +31,50 @@ window.paypal
                 const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
 
                 if (transaction?.status === "COMPLETED") {
+                    // Show success message first
                     resultMessage(`
                         Payment successful!<br>
                         Transaction ID: ${transaction.id}<br>
                         Processing license activation...
                     `);
 
-                    // Send message to parent window (Chrome extension)
-                    if (window.opener) {
-                        window.opener.postMessage({
-                            type: 'PAYMENT_COMPLETE',
-                            orderId: orderData.id,
-                            transactionId: transaction.id
-                        }, '*');
+                    // Get extension ID from URL
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const extId = urlParams.get('extId');
 
-                        // Wait a bit before closing to ensure message is sent
+                    if (!extId) {
+                        throw new Error('Extension ID not found');
+                    }
+
+                    // Send message directly to the extension using Chrome runtime
+                    chrome.runtime.sendMessage(extId, {
+                        type: 'PAYMENT_COMPLETE',
+                        orderId: orderData.id,
+                        transactionId: transaction.id
+                    }, response => {
+                        console.log('Message response:', response);
+                        if (chrome.runtime.lastError) {
+                            console.error('Error sending message:', chrome.runtime.lastError);
+                            resultMessage(`
+                                Error activating license.<br>
+                                Please close this window and restart the extension.
+                            `);
+                            return;
+                        }
+
+                        // Close window after successful message
                         setTimeout(() => {
                             window.close();
                         }, 3000);
-                    }
+                    });
+
                 } else if (transaction?.status === "INSTRUMENT_DECLINED") {
                     return actions.restart();
                 } else {
                     throw new Error(`Transaction status: ${transaction?.status}`);
                 }
             } catch (error) {
-                console.error(error);
+                console.error('Payment error:', error);
                 resultMessage(`
                     Transaction failed:<br>
                     ${error.message || error}
@@ -65,7 +83,7 @@ window.paypal
         },
 
         onError: function(err) {
-            console.error(err);
+            console.error('PayPal error:', err);
             resultMessage(`
                 Payment Error:<br>
                 ${err.message || err}
