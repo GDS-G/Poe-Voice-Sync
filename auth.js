@@ -26,16 +26,44 @@ class AuthHandler {
         }
     }
 
+    async silentSignIn() {
+        try {
+            console.log('Attempting silent sign-in');
+            const token = await chrome.identity.getAuthToken({ interactive: false });
+            if (token) {
+                console.log('Got token silently');
+                return await this.handleAuthSuccess(token);
+            }
+        } catch (error) {
+            console.log('Silent sign-in failed:', error);
+        }
+        return false;
+    }
+
     async signIn() {
         try {
-            const auth = await chrome.identity.getAuthToken({ interactive: true });
-            if (!auth) {
+            console.log('Starting interactive sign-in');
+            const token = await chrome.identity.getAuthToken({ interactive: true });
+            if (!token) {
                 throw new Error('Authentication failed');
             }
 
+            return await this.handleAuthSuccess(token);
+        } catch (error) {
+            console.error('Sign in error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async handleAuthSuccess(token) {
+        try {
+            console.log('Handling successful authentication');
             // Get user info using the auth token
             const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-                headers: { Authorization: `Bearer ${auth.token}` }
+                headers: { Authorization: `Bearer ${token.token}` }
             });
 
             if (!response.ok) {
@@ -43,6 +71,7 @@ class AuthHandler {
             }
 
             const userInfo = await response.json();
+            console.log('Got user info:', userInfo.email);
 
             // Store auth state in both storages
             await Promise.all([
@@ -64,16 +93,14 @@ class AuthHandler {
                 email: userInfo.email
             };
         } catch (error) {
-            console.error('Sign in error:', error);
-            return {
-                success: false,
-                error: error.message
-            };
+            console.error('Auth success handler error:', error);
+            throw new Error('Failed to get user info: ' + error.message);
         }
     }
 
     async signOut() {
         try {
+            console.log('Starting sign-out process');
             // Get current token
             const token = await chrome.identity.getAuthToken({ interactive: false });
 
@@ -116,7 +143,10 @@ class AuthHandler {
     }
 
     async getAuthState() {
-        await this.checkAuthState();
+        console.log('Getting auth state');
+        const isAuthenticated = await this.checkAuthState();
+        console.log('Auth state:', { isAuthenticated, userEmail: this.userEmail });
+
         return {
             isAuthenticated: this.isAuthenticated,
             userEmail: this.userEmail

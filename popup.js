@@ -1,3 +1,4 @@
+// popup.js
 import authHandler from './auth.js';
 import licenseHandler from './license.js';
 
@@ -13,121 +14,133 @@ document.addEventListener('DOMContentLoaded', async () => {
     const volumeLabel = document.querySelector('.volume-label');
     const enableSpeechCheckbox = document.getElementById('enable-speech');
     const testButton = document.getElementById('test-tts');
-    const statusElement = document.getElementById('test-status');
-
-    // Auth elements
     const signInContent = document.getElementById('sign-in-content');
     const signedInContent = document.getElementById('signed-in-content');
-    const signInButton = document.getElementById('sign-in-button');
     const signOutButton = document.getElementById('sign-out-button');
     const userEmailSpan = document.getElementById('user-email');
-    const licenseSection = document.getElementById('license-section');
     const licensedContent = document.getElementById('licensed-content');
-    const unlicensedContent = document.getElementById('unlicensed-content');
-    const purchaseButton = document.getElementById('purchase-button');
     const loadingIndicator = document.getElementById('loading-indicator');
 
+    // Create payment window reference
+    let paymentWindow = null;
+
     // Initial UI update
-    await updateAuthUI();
+    await checkAndInitialize();
 
-    // Listen for license updates
-    chrome.runtime.onMessage.addListener((message) => {
-        if (message.type === 'LICENSE_UPDATED') {
-            updateAuthUI();
-        }
-    });
-
-    // Auth event listeners
-    signInButton.addEventListener('click', async () => {
-        loadingIndicator.style.display = 'block';
-        try {
-            const result = await authHandler.signIn();
-            if (result.success) {
-                await updateAuthUI();
-            } else {
-                showStatus('Sign in failed: ' + result.error, 'error');
-            }
-        } finally {
-            loadingIndicator.style.display = 'none';
-        }
-    });
-
-    signOutButton.addEventListener('click', async () => {
-        loadingIndicator.style.display = 'block';
-        try {
-            const result = await authHandler.signOut();
-            if (result.success) {
-                await updateAuthUI();
-            } else {
-                showStatus('Sign out failed: ' + result.error, 'error');
-            }
-        } finally {
-            loadingIndicator.style.display = 'none';
-        }
-    });
-
-    // Purchase button listener
-    purchaseButton.addEventListener('click', () => {
-        const width = 500;
-        const height = 600;
-        const left = (screen.width - width) / 2;
-        const top = (screen.height - height) / 2;
-
-        window.open(
-            'https://gds-g.github.io/Poe-Voice-Sync/payment/payment.html',
-            'POE Voice Sync Payment',
-            `width=${width},height=${height},left=${left},top=${top}`
-        );
-    });
-
-    // Handle payment completion message
+    // Listen for messages from payment window
     window.addEventListener('message', async (event) => {
+        // Verify the origin is from our payment page
         if (event.origin !== 'https://gds-g.github.io') return;
 
+        console.log('Received message:', event.data);
+
         if (event.data.type === 'PAYMENT_COMPLETE') {
-            loadingIndicator.style.display = 'block';
             try {
-                const authState = await authHandler.getAuthState();
-                if (!authState.isAuthenticated) {
-                    throw new Error('User must be signed in to activate license');
-                }
-
-                // Generate and store license
-                const licenseResult = await licenseHandler.generateLicenseKey(authState.userEmail);
-                if (!licenseResult.success) {
-                    throw new Error('Failed to generate license');
-                }
-
-                // Show licensed content immediately
-                signInContent.style.display = 'none';
-                signedInContent.style.display = 'block';
-                licensedContent.style.display = 'block';
-                unlicensedContent.style.display = 'none';
-                form.style.display = 'block';
-
-                // Load initial settings
-                await loadInitialSettings();
-
-                // Notify background script
-                await chrome.runtime.sendMessage({
-                    type: 'PAYMENT_COMPLETE',
-                    orderId: event.data.orderId,
-                    transactionId: event.data.transactionId,
-                    licenseKey: licenseResult.licenseKey
-                });
-
-                showStatus('License activated successfully!', 'success');
-
-                // Force UI refresh
-                await updateAuthUI();
+                loadingIndicator.style.display = 'block';
+                await processPayment(event.data);
+                await checkAndInitialize();
             } catch (error) {
-                console.error('License activation error:', error);
-                showStatus('License activation failed: ' + error.message, 'error');
+                console.error('Error processing payment:', error);
+                showError('Failed to process payment: ' + error.message);
             } finally {
                 loadingIndicator.style.display = 'none';
             }
         }
     });
+
+    // Listen for license updates
+    chrome.runtime.onMessage.addListener((message) => {
+        if (message.type === 'LICENSE_UPDATED') {
+            checkAndInitialize();
+        }
+    });
+
+    async function processPayment(paymentData) {
+        console.log('Processing payment:', paymentData);
+
+        // Verify we're authenticated
+        const authState = await authHandler.getAuthState();
+        if (!authState.isAuthenticated) {
+            throw new Error('Must be signed in to activate license');
+        }
+
+        // Send to background script
+        await chrome.runtime.sendMessage({
+            type: 'PAYMENT_COMPLETE',
+            orderId: paymentData.orderId,
+            transactionId: paymentData.transactionId
+        });
+
+        // Wait for storage to sync
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    async function checkAndInitialize() {
+        loadingIndicator.style.display = 'block';
+        try {
+            console.log('Starting initialization check');
+
+            // First check auth state
+            const authState = await authHandler.getAuthState();
+            console.log('Auth state:', authState);
+
+            if (!authState.isAuthenticated) {
+                console.log('Not authenticated, attempting silent sign-in');
+                const silentSignIn = await authHandler.silentSignIn();
+                if (!silentSignIn) {
+                    console.log('Silent sign-in failed, initiating interactive sign-in');
+                    await authHandler.signIn();
+                }
+            }
+
+            // Check license status
+            const verification = await licenseHandler.verifyLicenseForEmail(authState.userEmail);
+            console.log('License verification:', verification);
+
+            if (verification.success && verification.isValid) {
+                console.log('License is valid, showing interface');
+                await showInterface(authState.userEmail);
+            } else {
+                console.log('No valid license, showing payment page');
+                openPaymentPage();
+            }
+        } catch (error) {
+            console.error('Initialization error:', error);
+            showError('Initialization failed: ' + error.message);
+        } finally {
+            loadingIndicator.style.display = 'none';
+        }
+    }
+
+    async function showInterface(userEmail) {
+        signInContent.style.display = 'none';
+        signedInContent.style.display = 'block';
+        userEmailSpan.textContent = userEmail;
+        licensedContent.style.display = 'block';
+        form.style.display = 'block';
+        await loadInitialSettings();
+    }
+
+    function openPaymentPage() {
+        // Close existing payment window if open
+        if (paymentWindow && !paymentWindow.closed) {
+            paymentWindow.close();
+        }
+
+        const width = 500;
+        const height = 600;
+        const left = Math.floor((screen.width - width) / 2);
+        const top = Math.floor((screen.height - height) / 2);
+
+        paymentWindow = window.open(
+            `https://gds-g.github.io/Poe-Voice-Sync/payment/payment.html?extId=${chrome.runtime.id}`,
+            'POE Voice Sync Payment',
+            `width=${width},height=${height},left=${left},top=${top}`
+        );
+
+        // Close the popup
+        window.close();
+    }
 
     async function loadInitialSettings() {
         const settings = await chrome.storage.sync.get(['apiKey', 'voice', 'volume', 'enabled']);
@@ -147,58 +160,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, 500);
         }
 
-        if (settings.volume !== undefined) {
-            volumeSlider.value = settings.volume;
-            updateVolumeLabel();
-        } else {
-            volumeSlider.value = 0.7;
-            updateVolumeLabel();
-        }
-
-        if (settings.enabled !== undefined) {
-            enableSpeechCheckbox.checked = settings.enabled;
-        } else {
-            enableSpeechCheckbox.checked = true;
-        }
+        volumeSlider.value = settings.volume ?? 0.7;
+        updateVolumeLabel();
+        enableSpeechCheckbox.checked = settings.enabled ?? true;
     }
 
-    async function updateAuthUI() {
-        loadingIndicator.style.display = 'block';
-        try {
-            const authState = await authHandler.getAuthState();
-
-            if (authState.isAuthenticated) {
-                signInContent.style.display = 'none';
-                signedInContent.style.display = 'block';
-                userEmailSpan.textContent = authState.userEmail;
-                licenseSection.style.display = 'block';
-
-                const verification = await licenseHandler.verifyLicenseForEmail(authState.userEmail);
-                if (verification.success && verification.isValid) {
-                    licensedContent.style.display = 'block';
-                    unlicensedContent.style.display = 'none';
-                    form.style.display = 'block';
-                    await loadInitialSettings();
-                } else {
-                    licensedContent.style.display = 'none';
-                    unlicensedContent.style.display = 'block';
-                    form.style.display = 'none';
-                }
-            } else {
-                signInContent.style.display = 'block';
-                signedInContent.style.display = 'none';
-                licenseSection.style.display = 'none';
-                form.style.display = 'none';
-            }
-        } finally {
-            loadingIndicator.style.display = 'none';
-        }
-    }
-
-    function showStatus(message, type = 'success') {
+    function showError(message) {
         const statusDiv = document.getElementById('status-message');
         statusDiv.textContent = message;
-        statusDiv.className = `status-message ${type}`;
+        statusDiv.className = 'status-message error';
         statusDiv.style.display = 'block';
         setTimeout(() => {
             statusDiv.style.display = 'none';
@@ -235,6 +205,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Event listeners
+    signOutButton.addEventListener('click', async () => {
+        loadingIndicator.style.display = 'block';
+        try {
+            await authHandler.signOut();
+            window.close();
+        } catch (error) {
+            showError('Sign out error: ' + error.message);
+        } finally {
+            loadingIndicator.style.display = 'none';
+        }
+    });
+
     volumeSlider.addEventListener('input', () => {
         updateVolumeLabel();
         saveSettings();
@@ -334,4 +316,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         saveSettings();
     });
+
+    function showStatus(message, type = 'success') {
+        const statusDiv = document.getElementById('status-message');
+        statusDiv.textContent = message;
+        statusDiv.className = `status-message ${type}`;
+        statusDiv.style.display = 'block';
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 3000);
+    }
 });

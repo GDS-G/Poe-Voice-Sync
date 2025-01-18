@@ -12,13 +12,21 @@
     "host_permissions": [
         "*://*.poe.com/*",
         "https://api.elevenlabs.io/*",
-        "https://gds-g.github.io/*"
+        "https://gds-g.github.io/*",
+        "https://accounts.google.com/*"
     ],
     "content_security_policy": {
         "extension_pages": "script-src 'self'; object-src 'self'"
     },
+    "externally_connectable": {
+        "matches": [
+            "https://gds-g.github.io/*"
+        ],
+        "accepts_tls_channel_id": false,
+        "ids": [ "*" ]
+    },
     "oauth2": {
-        "client_id": "727891588328-oh57b7j5ebdf5289l84aorm4n5p7knll.apps.googleusercontent.com",
+        "client_id": "727891588328-2r740eebr2e7bqa4nd7q8pru4abifp6r.apps.googleusercontent.com",
         "scopes": [
             "https://www.googleapis.com/auth/userinfo.email",
             "https://www.googleapis.com/auth/userinfo.profile"
@@ -38,7 +46,11 @@
     "web_accessible_resources": [
         {
             "resources": [ "icons/*", "*.js" ],
-            "matches": [ "*://*.poe.com/*", "*://*/*" ]
+            "matches": [
+                "*://*.poe.com/*",
+                "*://*.github.io/*",
+                "https://gds-g.github.io/*"
+            ]
         }
     ],
     "action": {

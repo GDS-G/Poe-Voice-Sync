@@ -1,107 +1,83 @@
-// Function to play audio
-function playAudio(blob) {
-    return new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
+// background.js
+import authHandler from './auth.js';
+import licenseHandler from './license.js';
 
-        audio.onended = () => {
-            URL.revokeObjectURL(url);
-            resolve();
-        };
-
-        audio.onerror = (error) => {
-            URL.revokeObjectURL(url);
-            reject(error);
-        };
-
-        audio.play().catch(reject);
-    });
-}
-
-// Function to convert text to speech using ElevenLabs
-async function textToSpeech(text) {
+// Function to handle payment completion
+async function handlePaymentComplete(orderId, transactionId) {
     try {
-        // Get settings from storage
-        const data = await chrome.storage.sync.get(['apiKey', 'voice', 'stability', 'similarity']);
-        const apiKey = data.apiKey;
+        console.log('Starting payment completion handler');
 
-        if (!apiKey) {
-            throw new Error("API key not found. Please set your ElevenLabs API key in the extension settings.");
+        // Get user email
+        const authState = await authHandler.getAuthState();
+        console.log('Auth state:', authState);
+
+        if (!authState.isAuthenticated) {
+            throw new Error('User must be signed in to activate license');
         }
 
-        const voiceId = data.voice || 'EXAVITQu4vr4xnSDxMaL'; // Default voice if none selected
-        const stability = data.stability || 0.5;
-        const similarity = data.similarity || 0.75;
+        // Clear any existing data first
+        await Promise.all([
+            chrome.storage.sync.remove(['licenseKey', 'licensedEmail', 'purchaseDate', 'orderId']),
+            chrome.storage.local.remove(['licenseKey', 'licensedEmail', 'purchaseDate', 'orderId'])
+        ]);
 
-        console.log('Making request to ElevenLabs...');
+        // Generate and store license
+        const licenseResult = await licenseHandler.generateLicenseKey(authState.userEmail);
+        console.log('License generation result:', licenseResult);
 
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-            method: 'POST',
-            headers: {
-                'Accept': 'audio/mpeg',
-                'Content-Type': 'application/json',
-                'xi-api-key': apiKey
-            },
-            body: JSON.stringify({
-                text: text,
-                model_id: 'eleven_multilingual_v2',
-                voice_settings: {
-                    stability: stability,
-                    similarity_boost: similarity
-                }
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
+        if (!licenseResult.success) {
+            throw new Error('Failed to generate license');
         }
 
-        const audioBlob = await response.blob();
-        await playAudio(audioBlob);
+        // Store license data
+        const licenseData = {
+            licenseKey: licenseResult.licenseKey,
+            orderId,
+            transactionId,
+            licensedEmail: authState.userEmail,
+            purchaseDate: Date.now(),
+            isActivated: true
+        };
 
+        console.log('Storing license data:', licenseData);
+
+        // Store new data
+        await Promise.all([
+            chrome.storage.sync.set(licenseData),
+            chrome.storage.local.set(licenseData)
+        ]);
+
+        console.log('License data stored successfully');
+
+        // Notify about license update
+        try {
+            await chrome.runtime.sendMessage({
+                type: 'LICENSE_UPDATED',
+                success: true,
+                licenseKey: licenseResult.licenseKey
+            });
+            console.log('License update notification sent');
+        } catch (e) {
+            console.log('No listeners for license update message');
+        }
+
+        return { success: true };
     } catch (error) {
-        console.error("Error converting text to speech:", error);
+        console.error('Error handling payment:', error);
         throw error;
     }
 }
 
-// Generate a license key
-async function generateLicenseKey(userEmail) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(userEmail + 'test_license_key_2024');
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
-}
-
 // Listen for messages
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log("Message received:", request);
+chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+    console.log("External message received:", request);
 
-    if (request.type === "READ_TEXT") {
-        textToSpeech(request.text)
-            .then(() => {
-                sendResponse({ status: "success" });
-            })
-            .catch((error) => {
-                console.error("Error in text-to-speech:", error);
-                sendResponse({
-                    status: "error",
-                    message: error.message || "Error converting text to speech"
-                });
-            });
-        return true; // Keep message channel open for async response
-    }
-
-    // Handle payment completion
     if (request.type === "PAYMENT_COMPLETE") {
-        handlePaymentComplete(request.orderId)
+        handlePaymentComplete(request.orderId, request.transactionId)
             .then(() => {
-                chrome.runtime.sendMessage({
-                    type: 'LICENSE_UPDATED'
-                }).catch(() => {/* Ignore errors if no listeners */ });
-
                 sendResponse({ status: "success" });
+                // Try to open popup after successful payment
+                chrome.action.openPopup().catch(console.error);
             })
             .catch((error) => {
                 console.error("Error processing payment:", error);
@@ -110,48 +86,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     message: error.message
                 });
             });
-        return true;
+        return true; // Keep the message channel open
     }
 
-    // Handle license check
-    if (request.type === "CHECK_LICENSE") {
-        chrome.storage.sync.get(['licenseKey', 'licensedEmail'], (data) => {
-            sendResponse({
-                isActivated: !!(data.licenseKey && data.licensedEmail)
-            });
-        });
-        return true;
-    }
+    return false;
 });
-
-// Handle payment completion
-async function handlePaymentComplete(orderId) {
-    try {
-        // Get user email
-        const data = await chrome.storage.sync.get(['userEmail']);
-        if (!data.userEmail) {
-            throw new Error('User email not found');
-        }
-
-        // Generate and store license
-        const licenseKey = await generateLicenseKey(data.userEmail);
-        await chrome.storage.sync.set({
-            licenseKey,
-            orderId,
-            purchaseDate: Date.now()
-        });
-
-        // Notify any open popups
-        chrome.runtime.sendMessage({
-            type: 'LICENSE_UPDATED',
-            licenseKey
-        }).catch(() => {
-            // Ignore errors if no listeners
-        });
-
-        return { success: true };
-    } catch (error) {
-        console.error('Error handling payment:', error);
-        throw error;
-    }
-}
