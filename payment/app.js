@@ -1,21 +1,31 @@
 // app.js
-function resultMessage(message, isError = false) {
-    const messageElement = document.getElementById('result-message');
-    messageElement.innerHTML = message;
-    messageElement.className = isError ? 'error' : 'success';
-}
+(function() {
+    // Helper function for showing messages
+    function resultMessage(message, isError = false) {
+        const messageElement = document.getElementById('result-message');
+        messageElement.innerHTML = message;
+        messageElement.className = isError ? 'error' : 'success';
+    }
 
-// Get extension ID from URL parameters
-const urlParams = new URLSearchParams(window.location.search);
-const extensionId = urlParams.get('extId');
+    // Get extension ID and setup logo
+    const params = new URLSearchParams(window.location.search);
+    const extensionId = params.get('extId');
+    
+    // Set logo source if extension ID is present
+    if (extensionId) {
+        const logoElement = document.getElementById('extension-logo');
+        if (logoElement) {
+            logoElement.src = `chrome-extension://${extensionId}/icons/logo.png`;
+        }
+    }
 
-// Check if PayPal is available
-if (!window.paypal) {
-    resultMessage('PayPal payment system failed to load. Please refresh the page.', true);
-    throw new Error('PayPal not loaded');
-}
+    // Check if PayPal is available
+    if (!window.paypal) {
+        resultMessage('PayPal payment system failed to load. Please refresh the page.', true);
+        return;
+    }
 
-try {
+    // Initialize PayPal buttons
     window.paypal
         .Buttons({
             style: {
@@ -110,7 +120,4 @@ try {
             console.error('Button render error:', error);
             resultMessage('Failed to load payment buttons. Please refresh the page.', true);
         });
-} catch (error) {
-    console.error('PayPal initialization error:', error);
-    resultMessage('Failed to initialize payment system. Please refresh the page.', true);
-}
+})();
