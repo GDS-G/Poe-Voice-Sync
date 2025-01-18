@@ -40,6 +40,7 @@
         #paypal-button-container {
             width: 100%;
             max-width: 500px;
+            min-height: 200px; /* Add minimum height to prevent layout shift */
         }
 
         #result-message {
@@ -64,15 +65,11 @@
 </head>
 <body>
     <div class="logo-container">
-        <img id="extension-logo" class="logo" alt="POE Voice Sync">
+        <img id="extension-logo" class="logo" src="logo.png" alt="POE Voice Sync">
     </div>
     <div class="price">Activate Extension for $19.99 USD</div>
     <div id="paypal-button-container"></div>
     <p id="result-message"></p>
-
-    <!-- Load PayPal SDK first -->
-    <script src="https://www.paypal.com/sdk/js?client-id=AWXwlfbfBOYSDikaxv7FchKUDAcTo7ObFB-qT3GEraxUnu4F6YWQPo3Y4sSAwXAht8syBpNFFV2HlvYh&currency=USD&components=buttons&enable-funding=venmo,paylater,card"
-            data-sdk-integration-source="developer-studio"></script>
 
     <!-- Set logo source using extension ID from URL -->
     <script>
@@ -81,9 +78,54 @@
         if (extId) {
             document.getElementById('extension-logo').src = `chrome-extension://${extId}/icons/logo.png`;
         }
+
+        // Add error handling for PayPal script load
+        window.paypalLoadError = function(error) {
+            console.error('PayPal script failed to load:', error);
+            document.getElementById('result-message').innerHTML = 'Error loading payment system. Please try again.';
+            document.getElementById('result-message').className = 'error';
+        };
     </script>
 
-    <!-- Load app.js last -->
-    <script src="app.js"></script>
+    <!-- Load PayPal SDK -->
+    <script src="https://www.paypal.com/sdk/js?client-id=AWXwlfbfBOYSDikaxv7FchKUDAcTo7ObFB-qT3GEraxUnu4F6YWQPo3Y4sSAwXAht8syBpNFFV2HlvYh&currency=USD&components=buttons"
+            data-namespace="paypal"
+            async
+            onerror="window.paypalLoadError(event)"
+    ></script>
+
+    <!-- Load app.js only after PayPal script -->
+    <script>
+        // Function to load app.js
+        function loadAppJs() {
+            const script = document.createElement('script');
+            script.src = 'app.js';
+            script.onerror = function(error) {
+                console.error('Error loading app.js:', error);
+                document.getElementById('result-message').innerHTML = 'Error loading payment system. Please try again.';
+                document.getElementById('result-message').className = 'error';
+            };
+            document.body.appendChild(script);
+        }
+
+        // Wait for PayPal to be available
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        function checkPayPal() {
+            if (window.paypal) {
+                loadAppJs();
+            } else if (attempts < maxAttempts) {
+                attempts++;
+                setTimeout(checkPayPal, 500);
+            } else {
+                document.getElementById('result-message').innerHTML = 'Error loading payment system. Please try again.';
+                document.getElementById('result-message').className = 'error';
+            }
+        }
+
+        // Start checking for PayPal
+        checkPayPal();
+    </script>
 </body>
 </html>
