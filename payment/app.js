@@ -5,23 +5,30 @@ function resultMessage(message, isError = false) {
     messageElement.className = isError ? 'error' : 'success';
 }
 
-// Store extension ID from URL for communication
-const extensionId = new URLSearchParams(window.location.search).get('extId');
+// Get extension ID from URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+const extensionId = urlParams.get('extId');
 
-// Function to store payment data in localStorage
-function storePaymentData(paymentData) {
-    const data = {
-        type: 'PAYMENT_COMPLETE',
-        ...paymentData,
-        timestamp: Date.now()
-    };
-    
-    // Store in both regular localStorage and sessionStorage as backup
-    localStorage.setItem('poeVoiceSyncPayment', JSON.stringify(data));
-    sessionStorage.setItem('poeVoiceSyncPayment', JSON.stringify(data));
-    
-    // Also store in a cookie as a final fallback
-    document.cookie = `poeVoiceSyncPayment=${encodeURIComponent(JSON.stringify(data))}; path=/; max-age=3600`;
+function notifyPaymentComplete(paymentData) {
+    // Try to notify opener window first
+    if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({
+            type: 'PAYMENT_COMPLETE',
+            ...paymentData
+        }, '*');
+    }
+
+    // Also try to send message to extension
+    if (extensionId) {
+        try {
+            chrome.runtime.sendMessage(extensionId, {
+                type: 'PAYMENT_COMPLETE',
+                ...paymentData
+            });
+        } catch (error) {
+            console.log('Extension message failed:', error);
+        }
+    }
 }
 
 window.paypal
@@ -61,20 +68,8 @@ window.paypal
                         transactionId: transaction.id
                     };
 
-                    // Try direct messaging first
-                    try {
-                        if (extensionId) {
-                            await chrome.runtime.sendMessage(extensionId, {
-                                type: 'PAYMENT_COMPLETE',
-                                ...paymentData
-                            });
-                        }
-                    } catch (error) {
-                        console.log('Direct message failed, using localStorage backup');
-                    }
-
-                    // Store payment data in multiple places
-                    storePaymentData(paymentData);
+                    // Notify about payment completion
+                    notifyPaymentComplete(paymentData);
 
                     resultMessage(`
                         Payment successful!<br>
