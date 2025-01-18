@@ -40,7 +40,7 @@
         #paypal-button-container {
             width: 100%;
             max-width: 500px;
-            min-height: 200px; /* Add minimum height to prevent layout shift */
+            min-height: 200px;
         }
 
         #result-message {
@@ -71,28 +71,10 @@
     <div id="paypal-button-container"></div>
     <p id="result-message"></p>
 
-    <!-- Set logo source using extension ID from URL -->
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const extId = urlParams.get('extId');
-        if (extId) {
-            document.getElementById('extension-logo').src = `chrome-extension://${extId}/icons/logo.png`;
-        }
-
-        // Add error handling for PayPal script load
-        window.paypalLoadError = function(error) {
-            console.error('PayPal script failed to load:', error);
-            document.getElementById('result-message').innerHTML = 'Error loading payment system. Please try again.';
-            document.getElementById('result-message').className = 'error';
-        };
-    </script>
-
     <!-- Load PayPal SDK -->
     <script src="https://www.paypal.com/sdk/js?client-id=AWXwlfbfBOYSDikaxv7FchKUDAcTo7ObFB-qT3GEraxUnu4F6YWQPo3Y4sSAwXAht8syBpNFFV2HlvYh&currency=USD&components=buttons"
             data-namespace="paypal"
-            async
-            onerror="window.paypalLoadError(event)"
-    ></script>
+            async></script>
 
     <!-- Load app.js only after PayPal script -->
     <script>
