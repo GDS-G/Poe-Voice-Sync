@@ -27,10 +27,6 @@
             height: auto;
         }
 
-        h1 {
-            margin-bottom: 10px;
-        }
-
         .price {
             font-size: 24px;
             font-weight: bold;
@@ -62,52 +58,43 @@
             border: 1px solid #c3e6cb;
         }
     </style>
+    <script>
+        // Get extension ID and set it as a global variable
+        const urlParams = new URLSearchParams(window.location.search);
+        window.extId = urlParams.get('extId');
+    </script>
 </head>
 <body>
     <div class="logo-container">
-        <img id="extension-logo" class="logo" src="logo.png" alt="POE Voice Sync">
+        <picture>
+            <!-- Fallback to a default image if extension path fails -->
+            <source srcset="" id="extension-source">
+            <img src="https://gds-g.github.io/Poe-Voice-Sync/logo.png" id="extension-logo" class="logo" alt="POE Voice Sync">
+        </picture>
     </div>
     <div class="price">Activate Extension for $19.99 USD</div>
     <div id="paypal-button-container"></div>
     <p id="result-message"></p>
 
+    <script>
+        // Try to set extension logo source
+        if (window.extId) {
+            const extensionSource = document.getElementById('extension-source');
+            extensionSource.srcset = `chrome-extension://${window.extId}/icons/logo.png`;
+            // Add error handling for the extension logo
+            const extensionLogo = document.getElementById('extension-logo');
+            extensionLogo.onerror = function() {
+                // On error, it will automatically fall back to the default image
+                console.log('Extension logo failed to load, using default');
+            };
+        }
+    </script>
+
     <!-- Load PayPal SDK -->
     <script src="https://www.paypal.com/sdk/js?client-id=AWXwlfbfBOYSDikaxv7FchKUDAcTo7ObFB-qT3GEraxUnu4F6YWQPo3Y4sSAwXAht8syBpNFFV2HlvYh&currency=USD&components=buttons"
-            data-namespace="paypal"
-            async></script>
+            data-namespace="paypal"></script>
 
-    <!-- Load app.js only after PayPal script -->
-    <script>
-        // Function to load app.js
-        function loadAppJs() {
-            const script = document.createElement('script');
-            script.src = 'app.js';
-            script.onerror = function(error) {
-                console.error('Error loading app.js:', error);
-                document.getElementById('result-message').innerHTML = 'Error loading payment system. Please try again.';
-                document.getElementById('result-message').className = 'error';
-            };
-            document.body.appendChild(script);
-        }
-
-        // Wait for PayPal to be available
-        let attempts = 0;
-        const maxAttempts = 10;
-        
-        function checkPayPal() {
-            if (window.paypal) {
-                loadAppJs();
-            } else if (attempts < maxAttempts) {
-                attempts++;
-                setTimeout(checkPayPal, 500);
-            } else {
-                document.getElementById('result-message').innerHTML = 'Error loading payment system. Please try again.';
-                document.getElementById('result-message').className = 'error';
-            }
-        }
-
-        // Start checking for PayPal
-        checkPayPal();
-    </script>
+    <!-- Load app.js -->
+    <script src="app.js"></script>
 </body>
 </html>
