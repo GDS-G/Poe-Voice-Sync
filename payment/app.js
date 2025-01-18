@@ -1,123 +1,124 @@
 // app.js
 (function() {
-    // Helper function for showing messages
     function resultMessage(message, isError = false) {
         const messageElement = document.getElementById('result-message');
         messageElement.innerHTML = message;
         messageElement.className = isError ? 'error' : 'success';
     }
 
-    // Get extension ID and setup logo
-    const params = new URLSearchParams(window.location.search);
-    const extensionId = params.get('extId');
-    
-    // Set logo source if extension ID is present
-    if (extensionId) {
-        const logoElement = document.getElementById('extension-logo');
-        if (logoElement) {
-            logoElement.src = `chrome-extension://${extensionId}/icons/logo.png`;
+    // Function to handle payment notification
+    async function notifyPaymentComplete(paymentData) {
+        // Try direct extension messaging first
+        if (window.extId) {
+            try {
+                await chrome.runtime.sendMessage(window.extId, {
+                    type: 'PAYMENT_COMPLETE',
+                    ...paymentData
+                });
+                return true;
+            } catch (error) {
+                console.log('Direct extension message failed:', error);
+            }
         }
-    }
 
-    // Check if PayPal is available
-    if (!window.paypal) {
-        resultMessage('PayPal payment system failed to load. Please refresh the page.', true);
-        return;
+        // Fallback to opener messaging
+        if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({
+                type: 'PAYMENT_COMPLETE',
+                ...paymentData
+            }, '*');
+            return true;
+        }
+
+        return false;
     }
 
     // Initialize PayPal buttons
-    window.paypal
-        .Buttons({
-            style: {
-                shape: "rect",
-                layout: "vertical",
-                color: "gold",
-                label: "paypal",
-            },
+    if (window.paypal) {
+        window.paypal
+            .Buttons({
+                style: {
+                    shape: "rect",
+                    layout: "vertical",
+                    color: "gold",
+                    label: "paypal",
+                },
 
-            createOrder: function(data, actions) {
-                return actions.order.create({
-                    purchase_units: [{
-                        description: "POE Voice Sync License",
-                        amount: {
-                            currency_code: "USD",
-                            value: "19.99"
-                        }
-                    }]
-                });
-            },
-
-            onApprove: async function(data, actions) {
-                try {
-                    const orderData = await actions.order.capture();
-                    const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
-
-                    if (transaction?.status === "COMPLETED") {
-                        resultMessage(`
-                            Payment successful!<br>
-                            Processing license activation...
-                        `);
-
-                        const paymentData = {
-                            orderId: orderData.id,
-                            transactionId: transaction.id
-                        };
-
-                        // Try to notify extension
-                        if (extensionId) {
-                            try {
-                                await chrome.runtime.sendMessage(extensionId, {
-                                    type: 'PAYMENT_COMPLETE',
-                                    ...paymentData
-                                });
-                            } catch (error) {
-                                console.log('Extension message failed:', error);
+                createOrder: function(data, actions) {
+                    return actions.order.create({
+                        purchase_units: [{
+                            description: "POE Voice Sync License",
+                            amount: {
+                                currency_code: "USD",
+                                value: "19.99"
                             }
-                        }
+                        }]
+                    });
+                },
 
-                        // Also try to notify any opener window
-                        if (window.opener && !window.opener.closed) {
-                            window.opener.postMessage({
-                                type: 'PAYMENT_COMPLETE',
-                                ...paymentData
-                            }, '*');
-                        }
+                onApprove: async function(data, actions) {
+                    try {
+                        const orderData = await actions.order.capture();
+                        const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
 
+                        if (transaction?.status === "COMPLETED") {
+                            resultMessage(`
+                                Payment successful!<br>
+                                Processing license activation...
+                            `);
+
+                            const paymentData = {
+                                orderId: orderData.id,
+                                transactionId: transaction.id
+                            };
+
+                            // Attempt to notify about payment
+                            const notified = await notifyPaymentComplete(paymentData);
+
+                            if (notified) {
+                                resultMessage(`
+                                    Payment successful!<br>
+                                    Please close this window and click the extension icon to complete activation.
+                                `);
+
+                                // Wait a moment before closing
+                                setTimeout(() => {
+                                    window.close();
+                                }, 3000);
+                            } else {
+                                resultMessage(`
+                                    Payment successful but couldn't notify extension.<br>
+                                    Please close this window and click the extension icon.
+                                `, true);
+                            }
+                        } else if (transaction?.status === "INSTRUMENT_DECLINED") {
+                            return actions.restart();
+                        } else {
+                            throw new Error(`Unexpected transaction status: ${transaction?.status}`);
+                        }
+                    } catch (error) {
+                        console.error('Payment error:', error);
                         resultMessage(`
-                            Payment successful!<br>
-                            Please close this window and click the extension icon to complete activation.
-                        `);
-
-                        // Wait a moment before closing
-                        setTimeout(() => {
-                            window.close();
-                        }, 3000);
-
-                    } else if (transaction?.status === "INSTRUMENT_DECLINED") {
-                        return actions.restart();
-                    } else {
-                        throw new Error(`Transaction status: ${transaction?.status}`);
+                            Transaction failed:<br>
+                            ${error.message || error}
+                        `, true);
                     }
-                } catch (error) {
-                    console.error('Payment error:', error);
+                },
+
+                onError: function(err) {
+                    console.error('PayPal error:', err);
                     resultMessage(`
-                        Transaction failed:<br>
-                        ${error.message || error}
+                        Payment Error:<br>
+                        ${err.message || err}
                     `, true);
                 }
-            },
-
-            onError: function(err) {
-                console.error('PayPal error:', err);
-                resultMessage(`
-                    Payment Error:<br>
-                    ${err.message || err}
-                `, true);
-            }
-        })
-        .render("#paypal-button-container")
-        .catch(function(error) {
-            console.error('Button render error:', error);
-            resultMessage('Failed to load payment buttons. Please refresh the page.', true);
-        });
+            })
+            .render("#paypal-button-container")
+            .catch(function(error) {
+                console.error('Button render error:', error);
+                resultMessage('Failed to load payment buttons. Please refresh the page.', true);
+            });
+    } else {
+        resultMessage('Failed to load PayPal SDK. Please refresh the page.', true);
+    }
 })();
