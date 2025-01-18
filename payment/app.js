@@ -8,28 +8,20 @@ function resultMessage(message, isError = false) {
 // Store extension ID from URL for communication
 const extensionId = new URLSearchParams(window.location.search).get('extId');
 
-// Function to communicate with extension
-async function notifyExtension(paymentData) {
-    if (!extensionId) {
-        throw new Error('Extension ID not found');
-    }
-
-    // Store in localStorage first as backup
-    localStorage.setItem('poeVoiceSyncPayment', JSON.stringify({
+// Function to store payment data in localStorage
+function storePaymentData(paymentData) {
+    const data = {
         type: 'PAYMENT_COMPLETE',
         ...paymentData,
         timestamp: Date.now()
-    }));
-
-    // Then try to send message directly to extension
-    try {
-        await chrome.runtime.sendMessage(extensionId, {
-            type: 'PAYMENT_COMPLETE',
-            ...paymentData
-        });
-    } catch (error) {
-        console.log('Direct message failed, using localStorage backup');
-    }
+    };
+    
+    // Store in both regular localStorage and sessionStorage as backup
+    localStorage.setItem('poeVoiceSyncPayment', JSON.stringify(data));
+    sessionStorage.setItem('poeVoiceSyncPayment', JSON.stringify(data));
+    
+    // Also store in a cookie as a final fallback
+    document.cookie = `poeVoiceSyncPayment=${encodeURIComponent(JSON.stringify(data))}; path=/; max-age=3600`;
 }
 
 window.paypal
@@ -69,30 +61,35 @@ window.paypal
                         transactionId: transaction.id
                     };
 
+                    // Try direct messaging first
                     try {
-                        await notifyExtension(paymentData);
-                        
-                        resultMessage(`
-                            Payment successful!<br>
-                            Please close this window and click the extension icon to complete activation.
-                        `);
-
-                        // Wait a moment before closing
-                        setTimeout(() => {
-                            window.close();
-                        }, 3000);
+                        if (extensionId) {
+                            await chrome.runtime.sendMessage(extensionId, {
+                                type: 'PAYMENT_COMPLETE',
+                                ...paymentData
+                            });
+                        }
                     } catch (error) {
-                        console.error('Communication error:', error);
-                        resultMessage(`
-                            Payment successful! However, there was a communication error.<br>
-                            Please close this window and click the extension icon to complete activation.<br>
-                            If activation fails, please refresh the extension.
-                        `);
+                        console.log('Direct message failed, using localStorage backup');
                     }
+
+                    // Store payment data in multiple places
+                    storePaymentData(paymentData);
+
+                    resultMessage(`
+                        Payment successful!<br>
+                        Please close this window and click the extension icon to complete activation.
+                    `);
+
+                    // Wait a moment before closing
+                    setTimeout(() => {
+                        window.close();
+                    }, 3000);
+
                 } else if (transaction?.status === "INSTRUMENT_DECLINED") {
                     return actions.restart();
                 } else {
-                    throw new Error(`Unexpected transaction status: ${transaction?.status}`);
+                    throw new Error(`Transaction status: ${transaction?.status}`);
                 }
             } catch (error) {
                 console.error('Payment error:', error);
