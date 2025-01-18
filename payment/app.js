@@ -5,36 +5,31 @@ function resultMessage(message, isError = false) {
     messageElement.className = isError ? 'error' : 'success';
 }
 
-// Get the extension ID from URL parameters
-const urlParams = new URLSearchParams(window.location.search);
-const extId = urlParams.get('extId');
+// Store extension ID from URL for communication
+const extensionId = new URLSearchParams(window.location.search).get('extId');
 
 // Function to communicate with extension
-function notifyExtension(paymentData) {
-    return new Promise((resolve, reject) => {
-        if (!extId) {
-            reject(new Error('Extension ID not found'));
-            return;
-        }
+async function notifyExtension(paymentData) {
+    if (!extensionId) {
+        throw new Error('Extension ID not found');
+    }
 
-        // Try to send message directly to extension
-        chrome.runtime.sendMessage(extId, {
+    // Store in localStorage first as backup
+    localStorage.setItem('poeVoiceSyncPayment', JSON.stringify({
+        type: 'PAYMENT_COMPLETE',
+        ...paymentData,
+        timestamp: Date.now()
+    }));
+
+    // Then try to send message directly to extension
+    try {
+        await chrome.runtime.sendMessage(extensionId, {
             type: 'PAYMENT_COMPLETE',
             ...paymentData
-        }, response => {
-            if (chrome.runtime.lastError) {
-                // If direct messaging fails, store in localStorage
-                localStorage.setItem('poeVoiceSyncPayment', JSON.stringify({
-                    type: 'PAYMENT_COMPLETE',
-                    ...paymentData,
-                    timestamp: Date.now()
-                }));
-                resolve('stored');
-            } else {
-                resolve('sent');
-            }
         });
-    });
+    } catch (error) {
+        console.log('Direct message failed, using localStorage backup');
+    }
 }
 
 window.paypal
@@ -75,7 +70,6 @@ window.paypal
                     };
 
                     try {
-                        // Attempt to notify extension
                         await notifyExtension(paymentData);
                         
                         resultMessage(`
@@ -98,7 +92,7 @@ window.paypal
                 } else if (transaction?.status === "INSTRUMENT_DECLINED") {
                     return actions.restart();
                 } else {
-                    throw new Error(`Transaction status: ${transaction?.status}`);
+                    throw new Error(`Unexpected transaction status: ${transaction?.status}`);
                 }
             } catch (error) {
                 console.error('Payment error:', error);
