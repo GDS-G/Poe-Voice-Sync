@@ -48,6 +48,18 @@
             border-radius: 4px;
             text-align: center;
         }
+
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success {
+            color: #28a745;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
     </style>
 </head>
 <body>
@@ -58,8 +70,12 @@
     <div id="paypal-button-container"></div>
     <p id="result-message"></p>
 
+    <!-- Load PayPal SDK first -->
+    <script src="https://www.paypal.com/sdk/js?client-id=AWXwlfbfBOYSDikaxv7FchKUDAcTo7ObFB-qT3GEraxUnu4F6YWQPo3Y4sSAwXAht8syBpNFFV2HlvYh&currency=USD&components=buttons&enable-funding=venmo,paylater,card"
+            data-sdk-integration-source="developer-studio"></script>
+
+    <!-- Set logo source using extension ID from URL -->
     <script>
-        // Set logo source using extension ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const extId = urlParams.get('extId');
         if (extId) {
@@ -67,8 +83,7 @@
         }
     </script>
 
-    <script src="https://www.paypal.com/sdk/js?client-id=AWXwlfbfBOYSDikaxv7FchKUDAcTo7ObFB-qT3GEraxUnu4F6YWQPo3Y4sSAwXAht8syBpNFFV2HlvYh&currency=USD&components=buttons&enable-funding=venmo,paylater,card"
-            data-sdk-integration-source="developer-studio"></script>
+    <!-- Load app.js last -->
     <script src="app.js"></script>
 </body>
 </html>
