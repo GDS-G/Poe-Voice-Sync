@@ -1,18 +1,40 @@
 // app.js
-function resultMessage(message) {
+function resultMessage(message, isError = false) {
     const messageElement = document.getElementById('result-message');
     messageElement.innerHTML = message;
+    messageElement.className = isError ? 'error' : 'success';
 }
 
-// Function to store payment data in localStorage
-function storePaymentData(orderId, transactionId) {
-    const paymentData = {
-        type: 'PAYMENT_COMPLETE',
-        orderId: orderId,
-        transactionId: transactionId,
-        timestamp: Date.now()
-    };
-    localStorage.setItem('poeVoiceSyncPayment', JSON.stringify(paymentData));
+// Get the extension ID from URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+const extId = urlParams.get('extId');
+
+// Function to communicate with extension
+function notifyExtension(paymentData) {
+    return new Promise((resolve, reject) => {
+        if (!extId) {
+            reject(new Error('Extension ID not found'));
+            return;
+        }
+
+        // Try to send message directly to extension
+        chrome.runtime.sendMessage(extId, {
+            type: 'PAYMENT_COMPLETE',
+            ...paymentData
+        }, response => {
+            if (chrome.runtime.lastError) {
+                // If direct messaging fails, store in localStorage
+                localStorage.setItem('poeVoiceSyncPayment', JSON.stringify({
+                    type: 'PAYMENT_COMPLETE',
+                    ...paymentData,
+                    timestamp: Date.now()
+                }));
+                resolve('stored');
+            } else {
+                resolve('sent');
+            }
+        });
+    });
 }
 
 window.paypal
@@ -44,31 +66,33 @@ window.paypal
                 if (transaction?.status === "COMPLETED") {
                     resultMessage(`
                         Payment successful!<br>
-                        Transaction ID: ${transaction.id}<br>
                         Processing license activation...
                     `);
 
-                    // Try to use window.opener first
-                    if (window.opener && !window.opener.closed) {
-                        window.opener.postMessage({
-                            type: 'PAYMENT_COMPLETE',
-                            orderId: orderData.id,
-                            transactionId: transaction.id
-                        }, '*');
+                    const paymentData = {
+                        orderId: orderData.id,
+                        transactionId: transaction.id
+                    };
 
-                        // Store data in localStorage as backup
-                        storePaymentData(orderData.id, transaction.id);
-
-                        // Close the window after a delay
-                        setTimeout(() => {
-                            window.close();
-                        }, 2000);
-                    } else {
-                        // If window.opener is not available, store in localStorage and show message
-                        storePaymentData(orderData.id, transaction.id);
+                    try {
+                        // Attempt to notify extension
+                        await notifyExtension(paymentData);
+                        
                         resultMessage(`
                             Payment successful!<br>
                             Please close this window and click the extension icon to complete activation.
+                        `);
+
+                        // Wait a moment before closing
+                        setTimeout(() => {
+                            window.close();
+                        }, 3000);
+                    } catch (error) {
+                        console.error('Communication error:', error);
+                        resultMessage(`
+                            Payment successful! However, there was a communication error.<br>
+                            Please close this window and click the extension icon to complete activation.<br>
+                            If activation fails, please refresh the extension.
                         `);
                     }
                 } else if (transaction?.status === "INSTRUMENT_DECLINED") {
@@ -81,7 +105,7 @@ window.paypal
                 resultMessage(`
                     Transaction failed:<br>
                     ${error.message || error}
-                `);
+                `, true);
             }
         },
 
@@ -90,7 +114,7 @@ window.paypal
             resultMessage(`
                 Payment Error:<br>
                 ${err.message || err}
-            `);
+            `, true);
         }
     })
     .render("#paypal-button-container");
