@@ -21,32 +21,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const licensedContent = document.getElementById('licensed-content');
     const loadingIndicator = document.getElementById('loading-indicator');
 
-    // Create payment window reference
-    let paymentWindow = null;
-
     // Initial UI update
     await checkAndInitialize();
-
-    // Listen for messages from payment window
-    window.addEventListener('message', async (event) => {
-        // Verify the origin is from our payment page
-        if (event.origin !== 'https://gds-g.github.io') return;
-
-        console.log('Received message:', event.data);
-
-        if (event.data.type === 'PAYMENT_COMPLETE') {
-            try {
-                loadingIndicator.style.display = 'block';
-                await processPayment(event.data);
-                await checkAndInitialize();
-            } catch (error) {
-                console.error('Error processing payment:', error);
-                showError('Failed to process payment: ' + error.message);
-            } finally {
-                loadingIndicator.style.display = 'none';
-            }
-        }
-    });
 
     // Listen for license updates
     chrome.runtime.onMessage.addListener((message) => {
@@ -54,26 +30,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             checkAndInitialize();
         }
     });
-
-    async function processPayment(paymentData) {
-        console.log('Processing payment:', paymentData);
-
-        // Verify we're authenticated
-        const authState = await authHandler.getAuthState();
-        if (!authState.isAuthenticated) {
-            throw new Error('Must be signed in to activate license');
-        }
-
-        // Send to background script
-        await chrome.runtime.sendMessage({
-            type: 'PAYMENT_COMPLETE',
-            orderId: paymentData.orderId,
-            transactionId: paymentData.transactionId
-        });
-
-        // Wait for storage to sync
-        await new Promise(resolve => setTimeout(resolve, 1000));
-    }
 
     async function checkAndInitialize() {
         loadingIndicator.style.display = 'block';
@@ -93,15 +49,64 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // Check license status
-            const verification = await licenseHandler.verifyLicenseForEmail(authState.userEmail);
+            // Get fresh auth state after potential sign in
+            const currentAuthState = await authHandler.getAuthState();
+            if (!currentAuthState.isAuthenticated) {
+                console.log('Still not authenticated after sign-in attempt');
+                return;
+            }
+
+            // Check for stored payment data
+            const paymentDataStr = localStorage.getItem('poeVoiceSyncPayment');
+            console.log('Found payment data:', paymentDataStr);
+
+            if (paymentDataStr) {
+                console.log('Processing stored payment data');
+                const paymentData = JSON.parse(paymentDataStr);
+                localStorage.removeItem('poeVoiceSyncPayment');
+
+                // Process the payment with background script
+                await chrome.runtime.sendMessage({
+                    type: 'PAYMENT_COMPLETE',
+                    orderId: paymentData.orderId,
+                    transactionId: paymentData.transactionId
+                });
+
+                // Wait for storage to sync
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            // Try to restore license first
+            console.log('Attempting to restore license for:', currentAuthState.userEmail);
+            const restored = await licenseHandler.restoreLicense(currentAuthState.userEmail);
+            console.log('License restore attempt result:', restored);
+
+            // Then verify license status
+            const verification = await licenseHandler.verifyLicenseForEmail(currentAuthState.userEmail);
             console.log('License verification:', verification);
 
             if (verification.success && verification.isValid) {
                 console.log('License is valid, showing interface');
-                await showInterface(authState.userEmail);
+                await showInterface(currentAuthState.userEmail);
             } else {
-                console.log('No valid license, showing payment page');
+                // Check storage for any existing license
+                const [syncData, localData] = await Promise.all([
+                    chrome.storage.sync.get(['licenseKey', 'licensedEmail']),
+                    chrome.storage.local.get(['licenseKey', 'licensedEmail'])
+                ]);
+
+                const existingLicense = syncData.licenseKey ? syncData : localData;
+
+                if (existingLicense.licenseKey && existingLicense.licensedEmail === currentAuthState.userEmail) {
+                    console.log('Found existing license, activating');
+                    const reactivated = await licenseHandler.restoreLicense(currentAuthState.userEmail);
+                    if (reactivated.success) {
+                        await showInterface(currentAuthState.userEmail);
+                        return;
+                    }
+                }
+
+                console.log('No valid license found, showing payment page');
                 openPaymentPage();
             }
         } catch (error) {
@@ -122,17 +127,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function openPaymentPage() {
-        // Close existing payment window if open
-        if (paymentWindow && !paymentWindow.closed) {
-            paymentWindow.close();
-        }
-
         const width = 500;
         const height = 600;
         const left = Math.floor((screen.width - width) / 2);
         const top = Math.floor((screen.height - height) / 2);
 
-        paymentWindow = window.open(
+        const paymentWindow = window.open(
             `https://gds-g.github.io/Poe-Voice-Sync/payment/payment.html?extId=${chrome.runtime.id}`,
             'POE Voice Sync Payment',
             `width=${width},height=${height},left=${left},top=${top}`
