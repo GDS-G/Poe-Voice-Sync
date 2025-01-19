@@ -230,9 +230,9 @@ async function playMessage(text, button) {
 
 // Add voice button to message
 async function addVoiceButton(messageElement, isNewMessage = false) {
-    // Find message content and verify it's a bot message
-    const messageBubble = messageElement.querySelector('.Message_leftSideMessageBubble__VPdk6');
-    const messageContent = messageBubble?.querySelector('.Markdown_markdownContainer__Tz3HQ');
+    // Find message content and verify it's a bot message using loose class selectors
+    const messageBubble = messageElement.querySelector('[class*="Message_leftSideMessageBubble"]');
+    const messageContent = messageBubble?.querySelector('[class*="Markdown_markdownContainer"]');
 
     if (!messageBubble || !messageContent || messageElement.querySelector('.tts-button')) {
         return;
@@ -259,11 +259,11 @@ async function addVoiceButton(messageElement, isNewMessage = false) {
 
     debug(`Adding voice button to message. Is truly new: ${isTrulyNew}`);
 
-    // Get the actions row or create one
-    let actionsRow = messageElement.querySelector('.Message_row__ug_UU');
+    // Get the actions row or create one using loose class selector
+    let actionsRow = messageElement.querySelector('[class*="Message_row"]');
     if (!actionsRow) {
         actionsRow = document.createElement('div');
-        actionsRow.className = 'Message_row__ug_UU';
+        actionsRow.className = 'Message_row'; // Using base class name
         messageBubble.parentNode.appendChild(actionsRow);
     }
 
@@ -365,13 +365,13 @@ function observeMessageContent(messageElement, contentElement, onComplete) {
     }, 10000);
 }
 
-// Process all messages in the chat
+// Process all messages in the chat using loose class selector
 function processMessages() {
     debug('Processing all messages');
-    const messages = document.querySelectorAll('.ChatMessage_chatMessage__xkgHx');
+    const messages = document.querySelectorAll('[class*="ChatMessage_chatMessage"]');
     messages.forEach(message => {
         // Only process bot messages (left side bubbles)
-        if (message.querySelector('.Message_leftSideMessageBubble__VPdk6')) {
+        if (message.querySelector('[class*="Message_leftSideMessageBubble"]')) {
             addVoiceButton(message, false);
         }
     });
@@ -399,14 +399,14 @@ function observeChat() {
             // Process new nodes
             mutation.addedNodes.forEach(node => {
                 if (node.nodeType === Node.ELEMENT_NODE) {
-                    // Check if the node is a message
-                    if (node.classList?.contains('ChatMessage_chatMessage__xkgHx')) {
+                    // Check if the node is a message using loose class selector
+                    if (node.classList && node.getAttribute('class')?.includes('ChatMessage_chatMessage')) {
                         debug('New message node detected directly');
                         addVoiceButton(node, true);
                     }
 
-                    // Check for messages inside the added node
-                    const messages = node.querySelectorAll('.ChatMessage_chatMessage__xkgHx');
+                    // Check for messages inside the added node using loose class selector
+                    const messages = node.querySelectorAll('[class*="ChatMessage_chatMessage"]');
                     if (messages.length > 0) {
                         debug(`Found ${messages.length} nested messages`);
                         messages.forEach(message => {
@@ -418,7 +418,7 @@ function observeChat() {
 
             // Check for message content loaded after container
             if (mutation.target) {
-                const messageElement = mutation.target.closest('.ChatMessage_chatMessage__xkgHx');
+                const messageElement = mutation.target.closest('[class*="ChatMessage_chatMessage"]');
                 if (messageElement && !messageElement.querySelector('.tts-button')) {
                     debug('Found message content loaded after container');
                     addVoiceButton(messageElement, true);
@@ -444,13 +444,12 @@ function observeChat() {
 
 // Clean up all duplicate buttons in the chat
 function cleanupDuplicateButtons() {
-    const messages = document.querySelectorAll('.ChatMessage_chatMessage__xkgHx');
+    const messages = document.querySelectorAll('[class*="ChatMessage_chatMessage"]');
     messages.forEach(message => {
         removeDuplicateButtons(message);
     });
 }
 
-// Initialize extension
 // Initialize extension
 async function initialize() {
     debug('Initializing extension');
