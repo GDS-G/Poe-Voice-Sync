@@ -238,33 +238,43 @@ async function addVoiceButton(messageElement, isNewMessage = false) {
         return;
     }
 
-    // Get the message ID
+    // Get the message ID - first try data attribute, then fall back to alternatives
     const messageId = messageElement.getAttribute('data-message-id') ||
         messageElement.id ||
         `msg-${Date.now()}-${Math.random()}`;
 
-    // Record timestamp for this message
+    // Record timestamp for this message if it's new
     if (!messageTimestamps.has(messageId)) {
         messageTimestamps.set(messageId, Date.now());
     }
 
     // Check if this is truly a new message
+    // A message is considered truly new if:
+    // 1. We're not in initial page load
+    // 2. It's marked as a new message
+    // 3. We haven't processed it before
+    // 4. It's not from scrolling
+    // 5. It appeared within the last 5 seconds (helps filter out loaded messages)
+    const messageTime = messageTimestamps.get(messageId);
     const isTrulyNew = !initialPageLoad &&
         isNewMessage &&
         !processedMessageIds.has(messageId) &&
-        !isFromScroll(messageElement);
+        !isFromScroll(messageElement) &&
+        messageTime > (Date.now() - 5000);
 
     // Track this message
     processedMessageIds.add(messageId);
 
     debug(`Adding voice button to message. Is truly new: ${isTrulyNew}`);
 
-    // Get the actions row or create one using loose class selector
+    // Get the actions row using loose class selector
     let actionsRow = messageElement.querySelector('[class*="Message_row"]');
     if (!actionsRow) {
         actionsRow = document.createElement('div');
-        actionsRow.className = 'Message_row'; // Using base class name
-        messageBubble.parentNode.appendChild(actionsRow);
+        // Use a standard class name that matches Poe's pattern
+        actionsRow.setAttribute('class', 'Message_row');
+        // Important: Insert after the message bubble to maintain layout
+        messageBubble.parentNode.insertBefore(actionsRow, messageBubble.nextSibling);
     }
 
     // Create button
@@ -292,7 +302,7 @@ async function addVoiceButton(messageElement, isNewMessage = false) {
         }
     });
 
-    // Add button after other action buttons
+    // Add button to actions row
     actionsRow.appendChild(button);
 
     // Remove any duplicate buttons after adding new one
@@ -309,6 +319,79 @@ async function addVoiceButton(messageElement, isNewMessage = false) {
             }
         });
     }
+}
+
+// Update styles to ensure proper positioning
+function injectStyles() {
+    const styles = `
+        .tts-button {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 24px !important;
+            width: 24px !important;
+            min-height: 24px !important;
+            height: 24px !important;
+            padding: 4px !important;
+            margin-left: 8px !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            opacity: 0.7 !important;
+            transition: all 0.2s ease !important;
+            vertical-align: middle !important;
+            flex-shrink: 0 !important;
+            position: relative !important;
+            float: right !important;
+        }
+
+        .tts-button:hover {
+            opacity: 1 !important;
+            background: rgba(0, 0, 0, 0.05) !important;
+        }
+
+        .tts-button img {
+            width: 16px !important;
+            height: 16px !important;
+            min-width: 16px !important;
+            min-height: 16px !important;
+            object-fit: contain !important;
+        }
+
+        .tts-button.playing {
+            background: rgba(88, 101, 242, 0.1) !important;
+            animation: tts-pulse 1s infinite;
+        }
+
+        .tts-error-tooltip {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff4444;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        @keyframes tts-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    `;
+
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = styles;
+    document.head.appendChild(styleSheet);
+    debug('Styles injected');
 }
 
 // Function to remove duplicate buttons
