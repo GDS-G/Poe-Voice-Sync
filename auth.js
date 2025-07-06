@@ -28,14 +28,14 @@ class AuthHandler {
 
     async signIn() {
         try {
-            const auth = await chrome.identity.getAuthToken({ interactive: true });
-            if (!auth) {
+            const token = await chrome.identity.getAuthToken({ interactive: true });
+            if (!token) {
                 throw new Error('Authentication failed');
             }
 
             // Get user info using the auth token
             const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-                headers: { Authorization: `Bearer ${auth.token}` }
+                headers: { Authorization: `Bearer ${token}` }
             });
 
             if (!response.ok) {
@@ -79,9 +79,9 @@ class AuthHandler {
 
             if (token) {
                 // Revoke token
-                await fetch(`https://accounts.google.com/o/oauth2/revoke?token=${token.token}`);
+                await fetch(`https://accounts.google.com/o/oauth2/revoke?token=${token}`);
                 // Remove from cache
-                await chrome.identity.removeCachedAuthToken({ token: token.token });
+                await chrome.identity.removeCachedAuthToken({ token });
             }
 
             // Only remove auth state, preserve license data
