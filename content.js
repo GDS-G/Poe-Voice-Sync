@@ -150,10 +150,13 @@
     }
 
     async function refreshSettings() {
-        const stored = await chrome.storage.sync.get(['ttsProvider', 'apiKey', 'voice', 'volume', 'enabled']);
+        const [stored, localSecrets] = await Promise.all([
+            chrome.storage.sync.get(['ttsProvider', 'voice', 'volume', 'enabled']),
+            chrome.storage.local.get(['apiKey'])
+        ]);
         state.settings = {
             provider: PoeVoiceTTS.normalizeProvider(stored.ttsProvider),
-            apiKey: stored.apiKey || '',
+            apiKey: localSecrets.apiKey || '',
             voiceId: stored.voice || '',
             volume: stored.volume ?? 0.7,
             enabled: stored.enabled ?? true

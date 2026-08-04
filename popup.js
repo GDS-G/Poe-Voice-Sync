@@ -69,27 +69,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function storageSnapshot() {
-        return chrome.storage.sync.get([
-            'ttsProvider', 'apiKey', 'apiKeys', 'voice', 'voices', 'humeVoiceProvider',
-            'volume', 'enabled'
+        const [synced, localSecrets] = await Promise.all([
+            chrome.storage.sync.get([
+                'ttsProvider', 'apiKey', 'apiKeys', 'voice', 'voices', 'humeVoiceProvider',
+                'volume', 'enabled'
+            ]),
+            chrome.storage.local.get(['apiKey', 'apiKeys'])
         ]);
+        const apiKeys = { ...(synced.apiKeys || {}), ...(localSecrets.apiKeys || {}) };
+        const apiKey = localSecrets.apiKey || synced.apiKey || '';
+
+        if (synced.apiKey || synced.apiKeys) {
+            await Promise.all([
+                chrome.storage.local.set({ apiKey, apiKeys }),
+                chrome.storage.sync.remove(['apiKey', 'apiKeys'])
+            ]);
+        }
+
+        return { ...synced, apiKey, apiKeys };
     }
 
     async function persistProvider(provider, notify = false) {
         const stored = await storageSnapshot();
         const apiKeys = { ...(stored.apiKeys || {}), [provider]: apiKeyInput.value.trim() };
         const voices = { ...(stored.voices || {}), [provider]: selectedVoice() };
-        const settings = {
+        const syncedSettings = {
             ttsProvider: provider,
-            apiKeys,
             voices,
-            apiKey: apiKeys[provider] || '',
             voice: voices[provider]?.id || '',
             humeVoiceProvider: voices[provider]?.provider || null,
             volume: Number(volumeSlider.value),
             enabled: enableSpeechCheckbox.checked
         };
-        await chrome.storage.sync.set(settings);
+        const localSecrets = { apiKeys, apiKey: apiKeys[provider] || '' };
+        const settings = { ...syncedSettings, ...localSecrets };
+        await Promise.all([
+            chrome.storage.sync.set(syncedSettings),
+            chrome.storage.local.set(localSecrets),
+            chrome.storage.sync.remove(['apiKey', 'apiKeys'])
+        ]);
         if (notify) await notifyPoeTabs(settings);
         return settings;
     }
