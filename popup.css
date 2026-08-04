@@ -27,6 +27,33 @@ body {
     margin-bottom: 20px;
 }
 
+.provider-disclosure {
+    padding: 12px;
+    border: 1px solid #9fc5e8;
+    border-radius: 8px;
+    background: #f4f9fd;
+    color: #20384d;
+}
+
+.provider-disclosure p {
+    margin: 7px 0;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.consent-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.consent-label input {
+    margin-top: 2px;
+    flex: 0 0 auto;
+}
+
 label {
     display: block;
     margin-bottom: 8px;

@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const volumeSlider = document.getElementById('volume');
     const volumeLabel = document.querySelector('.volume-label');
     const enableSpeechCheckbox = document.getElementById('enable-speech');
+    const providerConsentCheckbox = document.getElementById('provider-consent');
     const testButton = document.getElementById('test-tts');
     const testStatus = document.getElementById('test-status');
     const signInContent = document.getElementById('sign-in-content');
@@ -60,6 +61,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         apiKeyLink.textContent = `Get a ${info.label} API key`;
     }
 
+    function updateConsentUi() {
+        const consented = providerConsentCheckbox.checked;
+        apiKeyInput.disabled = !consented;
+        voiceSelection.disabled = !consented;
+        testButton.disabled = !consented;
+        enableSpeechCheckbox.disabled = !consented;
+    }
+
     function selectedVoice() {
         const option = voiceSelection.selectedOptions[0];
         return {
@@ -72,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const [synced, localSecrets] = await Promise.all([
             chrome.storage.sync.get([
                 'ttsProvider', 'apiKey', 'apiKeys', 'voice', 'voices', 'humeVoiceProvider',
-                'volume', 'enabled'
+                'volume', 'enabled', 'providerConsent'
             ]),
             chrome.storage.local.get(['apiKey', 'apiKeys'])
         ]);
@@ -92,14 +101,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function persistProvider(provider, notify = false) {
         const stored = await storageSnapshot();
         const apiKeys = { ...(stored.apiKeys || {}), [provider]: apiKeyInput.value.trim() };
-        const voices = { ...(stored.voices || {}), [provider]: selectedVoice() };
+        const voices = { ...(stored.voices || {}) };
+        const currentVoice = selectedVoice();
+        if (currentVoice.id) voices[provider] = currentVoice;
         const syncedSettings = {
             ttsProvider: provider,
             voices,
             voice: voices[provider]?.id || '',
             humeVoiceProvider: voices[provider]?.provider || null,
             volume: Number(volumeSlider.value),
-            enabled: enableSpeechCheckbox.checked
+            enabled: enableSpeechCheckbox.checked,
+            providerConsent: providerConsentCheckbox.checked
         };
         const localSecrets = { apiKeys, apiKey: apiKeys[provider] || '' };
         const settings = { ...syncedSettings, ...localSecrets };
@@ -183,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             voiceSelection.innerHTML = '<option value="">Error loading voices</option>';
             showError(error.message);
         } finally {
-            voiceSelection.disabled = false;
+            voiceSelection.disabled = !providerConsentCheckbox.checked;
         }
     }
 
@@ -196,7 +208,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!stored.ttsProvider && stored.voice && !voices.elevenlabs) voices.elevenlabs = { id: stored.voice, provider: 'ELEVENLABS' };
         apiKeyInput.value = apiKeys[activeProvider] || '';
         const preferredVoice = voices[activeProvider]?.id || '';
-        if (apiKeyInput.value) {
+        if (!providerConsentCheckbox.checked) {
+            voiceSelection.innerHTML = '<option value="">Accept the voice data disclosure to load voices</option>';
+        } else if (apiKeyInput.value) {
             await fetchVoices(apiKeyInput.value, preferredVoice);
         } else {
             voiceSelection.innerHTML = '<option value="">Enter an API key to load voices</option>';
@@ -207,8 +221,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const stored = await storageSnapshot();
         volumeSlider.value = stored.volume ?? 0.7;
         enableSpeechCheckbox.checked = stored.enabled ?? true;
+        providerConsentCheckbox.checked = stored.providerConsent === true;
         updateVolumeLabel();
         await loadProvider(stored.ttsProvider || 'elevenlabs', stored);
+        updateConsentUi();
     }
 
     async function showInterface(userEmail, verification = {}) {
@@ -304,6 +320,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!initializing) persistProvider(activeProvider, true);
     });
     enableSpeechCheckbox.addEventListener('change', () => persistProvider(activeProvider, true));
+    providerConsentCheckbox.addEventListener('change', async () => {
+        updateConsentUi();
+        if (providerConsentCheckbox.checked) {
+            const stored = await storageSnapshot();
+            await loadProvider(activeProvider, stored);
+        } else {
+            voiceSelection.innerHTML = '<option value="">Accept the voice data disclosure to load voices</option>';
+        }
+        await persistProvider(activeProvider, true);
+    });
 
     purchaseLicenseButton.addEventListener('click', openPaymentPage);
     activateLicenseButton.addEventListener('click', async () => {
@@ -363,6 +389,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         testButton.disabled = true;
         testStatus.textContent = ' Testing...';
         try {
+            if (!providerConsentCheckbox.checked) {
+                throw new Error('Accept the voice data disclosure before generating speech.');
+            }
             const blob = await PoeVoiceTTS.synthesize({
                 provider: activeProvider,
                 apiKey: apiKeyInput.value,
