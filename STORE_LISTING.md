@@ -14,7 +14,7 @@ Poe Voice Sync adds a speech button to Poe chatbot responses and can automatical
 
 The extension does not read existing conversation history automatically when a Poe page first loads. Manual speech buttons remain available for current and earlier chatbot responses.
 
-Poe Voice Sync is paid software with no free production tier. Access is $9.99 USD per month or $99.99 USD per year. Voice-provider usage is billed separately by ElevenLabs or Hume under the user's own account.
+Poe Voice Sync is paid software with a three-day free trial and no ongoing free tier. Access after the trial is $9.99 USD per month or $99.99 USD per year. Voice-provider usage is billed separately by ElevenLabs or Hume under the user's own account.
 
 ## Single purpose
 

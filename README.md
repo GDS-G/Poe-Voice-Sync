@@ -53,9 +53,7 @@ Alternatively, use `--expires YYYY-MM-DD` instead of `--days`. The issuer refuse
 
 The hosted payment page records an unverified receipt but never activates production access. Until a no-cost or paid verification service is deployed, the merchant must verify each PayPal payment manually before issuing a signed token. A future server can replace this manual issuer without changing the signed token format or extension verification path.
 
-The current PayPal client ID is still sandbox-only. Do not accept live payments until the amount and billing interval are confirmed and the hosted payment page is updated with the selected live PayPal app.
-
-The selected subscription prices are **$9.99 USD monthly** and **$99.99 USD yearly**. The yearly plan saves $19.89 (about 17%, equivalent to roughly two months free) compared with twelve monthly payments. There is no production free tier: the customer distribution rejects beta licenses and requires a valid paid, signed license. Canonical hosted-page sources live in `payment/`; update `payment/payment-config.js` with the PayPal plan IDs and live client ID only after creating the corresponding Live product and plans.
+The hosted payment page uses the dedicated Poe Voice Sync Live PayPal app and the two active production subscription plans. Both plans include a three-day free trial. After the trial, the selected prices are **$9.99 USD monthly** and **$99.99 USD yearly**. The yearly plan saves $19.89 (about 17%, equivalent to roughly two months free) compared with twelve monthly payments. There is no ongoing production free tier: the customer distribution rejects beta licenses and requires a valid paid, signed license after the trial. Canonical hosted-page sources live in `payment/`.
 
 ## Production extension package
 
