@@ -49,6 +49,16 @@
         </div>
 
         <form id="settings-form" style="display: none;">
+            <div class="form-group provider-disclosure" role="note">
+                <strong>Voice data disclosure</strong>
+                <p>When you test or play speech, the text being read is sent directly from this browser to your selected provider (ElevenLabs or Hume) using your API key. Poe Voice Sync does not send that text or key to its developer.</p>
+                <label class="consent-label">
+                    <input type="checkbox" id="provider-consent" name="provider-consent">
+                    I consent to sending text to my selected voice provider for speech generation.
+                </label>
+                <small><a href="https://github.com/GDS-G/Poe-Voice-Sync/blob/main/PRIVACY.md" target="_blank" rel="noreferrer">Privacy policy</a></small>
+            </div>
+
             <div class="form-group">
                 <label for="tts-provider">Voice provider:</label>
                 <select id="tts-provider" name="tts-provider" required>
