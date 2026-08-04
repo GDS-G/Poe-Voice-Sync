@@ -29,6 +29,7 @@
         currentAudio: null,
         currentButton: null,
         currentAudioUrl: null,
+        offscreenPlayback: false,
         isSynthesizing: false,
         playbackGeneration: 0,
         observer: null,
@@ -118,17 +119,21 @@
         (document.head || document.documentElement).appendChild(style);
     }
 
-    function stopCurrentAudio() {
+    function stopCurrentAudio({ stopOffscreen = true } = {}) {
         state.playbackGeneration += 1;
         if (state.currentAudio) {
             state.currentAudio.pause();
             state.currentAudio.currentTime = 0;
         }
         if (state.currentAudioUrl) URL.revokeObjectURL(state.currentAudioUrl);
+        if (state.offscreenPlayback && stopOffscreen) {
+            chrome.runtime.sendMessage({ type: 'STOP_SPEECH' }).catch(error => log('Unable to stop automatic playback', error));
+        }
         state.currentButton?.classList.remove('playing');
         state.currentAudio = null;
         state.currentButton = null;
         state.currentAudioUrl = null;
+        state.offscreenPlayback = false;
         state.isSynthesizing = false;
     }
 
@@ -173,7 +178,7 @@
         return (clone.innerText || clone.textContent || '').replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').trim();
     }
 
-    async function playMessage(text, button) {
+    async function playMessage(text, button, { backgroundPlayback = false } = {}) {
         const settings = await refreshSettings();
         if (!state.licensed) {
             showError(button, 'An active Poe Voice Sync license is required.');
@@ -189,6 +194,14 @@
         state.currentButton = button;
         state.isSynthesizing = true;
         try {
+            if (backgroundPlayback) {
+                const result = await chrome.runtime.sendMessage({ type: 'PLAY_SPEECH', text });
+                if (!result?.success) throw new Error(result?.error || 'Automatic audio playback failed.');
+                if (playbackGeneration !== state.playbackGeneration || state.currentButton !== button) return;
+                state.isSynthesizing = false;
+                state.offscreenPlayback = true;
+                return;
+            }
             const blob = await PoeVoiceTTS.synthesize({ ...settings, text });
             if (playbackGeneration !== state.playbackGeneration || state.currentButton !== button) return;
             const audioUrl = URL.createObjectURL(blob);
@@ -299,7 +312,7 @@
             if (!state.settings?.enabled || !state.licensed) return;
             record.autoPlayed = true;
             state.autoPlayedKeys.add(record.key);
-            await playMessage(getMessageText(record.content), record.button);
+            await playMessage(getMessageText(record.content), record.button, { backgroundPlayback: true });
         }, SETTLE_MS);
     }
 
@@ -436,6 +449,13 @@
         }, 500);
 
         chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+            if (message.type === 'OFFSCREEN_PLAYBACK_FINISHED') {
+                if (state.offscreenPlayback) {
+                    if (message.error && state.currentButton) showError(state.currentButton, message.error);
+                    stopCurrentAudio({ stopOffscreen: false });
+                }
+                return false;
+            }
             if (message.type !== 'SETTINGS_UPDATED' && message.type !== 'LICENSE_UPDATED') return false;
             refreshSettings().then(() => {
                 stopCurrentAudio();

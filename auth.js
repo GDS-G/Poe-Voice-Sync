@@ -27,18 +27,18 @@ class AuthHandler {
     }
 
     async silentSignIn() {
-        // Edge profile identity cannot be revoked by an extension. Requiring an
-        // explicit click here ensures that signing out remains meaningful.
+        // Browser profile identity cannot be revoked by an extension. Requiring
+        // an explicit click here ensures that signing out remains meaningful.
         return false;
     }
 
     async signIn() {
         try {
-            console.log('Reading the signed-in Microsoft Edge profile');
+            console.log('Reading the signed-in Chromium browser profile');
             const profile = await chrome.identity.getProfileUserInfo({ accountStatus: 'ANY' });
             const email = profile?.email?.trim().toLowerCase();
             if (!email) {
-                throw new Error('Sign in to Microsoft Edge with a Microsoft or Entra account, then try again.');
+                throw new Error('Sign in to your Chrome or Edge browser profile, then try again.');
             }
             return await this.handleAuthSuccess(email);
         } catch (error) {
@@ -52,8 +52,6 @@ class AuthHandler {
 
     async handleAuthSuccess(email) {
         try {
-            console.log('Got Edge profile email:', email);
-
             // Store auth state in both storages
             await Promise.all([
                 chrome.storage.sync.set({
@@ -75,7 +73,7 @@ class AuthHandler {
             };
         } catch (error) {
             console.error('Auth success handler error:', error);
-            throw new Error('Failed to store Edge profile information: ' + error.message);
+            throw new Error('Failed to store browser profile information: ' + error.message);
         }
     }
 

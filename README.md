@@ -10,9 +10,9 @@ Chrome extension that reads Poe chatbot responses aloud with either ElevenLabs o
 4. Choose **Load unpacked** and select the generated `dist-beta/` directory. Never load the repository root; browser testing should use only the allowlisted bundle.
 5. Pin **Poe Voice Sync**, sign in, and configure a provider, API key, and voice.
 
-## Microsoft Edge build
+## Chrome and Microsoft Edge
 
-The Edge release branch uses the signed-in Microsoft Edge profile for explicit account verification because Edge does not support Chrome's `identity.getAuthToken` API. Users must be signed in to Edge with a Microsoft or Entra account, then click **Sign in with Microsoft Edge** in the extension popup. Signing out of Poe Voice Sync clears only the extension session; it does not sign the browser profile out.
+The Chromium release uses the signed-in Chrome or Microsoft Edge browser profile for explicit account verification. Users click **Sign in with Chrome or Edge** in the extension popup. Signing out of Poe Voice Sync clears only the extension session; it does not sign the browser profile out. The same package is supported in current Chrome and Edge releases.
 
 The provider menu uses one API-key field while remembering separate ElevenLabs and Hume keys. Personalized voices appear first: ElevenLabs cloned/generated/professional voices are grouped above premade voices, and Hume custom voices are grouped above the shared Hume Voice Library.
 

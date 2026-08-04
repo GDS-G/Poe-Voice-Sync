@@ -5,6 +5,8 @@ const manifest = JSON.parse(readFileSync('manifest.json', 'utf8'));
 const requiredFiles = [
     manifest.background.service_worker,
     manifest.action.default_popup,
+    'offscreen.html',
+    'offscreen.js',
     'license-token.js',
     'license-public-key.js',
     'license-config.js',
@@ -26,7 +28,7 @@ if (!expectedOrder.every((file, index) => scripts[index] === file)) {
     throw new Error(`Content scripts must load in this order: ${expectedOrder.join(', ')}`);
 }
 
-for (const file of ['app.js', 'auth.js', 'background.js', 'content.js', 'debug.js', 'license.js', 'license-token.js', 'license-public-key.js', 'license-config.js', 'payment/app.js', 'payment/payment-config.js', 'popup.js', 'tts.js', 'tts-bridge.js']) {
+for (const file of ['app.js', 'auth.js', 'background.js', 'content.js', 'debug.js', 'license.js', 'license-token.js', 'license-public-key.js', 'license-config.js', 'offscreen.js', 'payment/app.js', 'payment/payment-config.js', 'popup.js', 'tts.js', 'tts-bridge.js']) {
     const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
     if (result.status !== 0) throw new Error(`${file} failed syntax validation:\n${result.stderr}`);
 }

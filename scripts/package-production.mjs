@@ -16,6 +16,8 @@ const runtimeFiles = [
     'license-token.js',
     'license-public-key.js',
     'manifest.json',
+    'offscreen.html',
+    'offscreen.js',
     'popup.css',
     'popup.html',
     'popup.js',

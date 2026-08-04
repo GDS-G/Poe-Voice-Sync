@@ -4,6 +4,8 @@ import licenseHandler from './license.js';
 
 const PAYMENT_ORIGIN = 'https://gds-g.github.io';
 const PAYMENT_PATH = '/Poe-Voice-Sync/payment/payment.html';
+const OFFSCREEN_DOCUMENT_PATH = 'offscreen.html';
+let creatingOffscreenDocument = null;
 
 function isExpectedPaymentSender(sender) {
     try {
@@ -25,9 +27,40 @@ function arrayBufferToBase64(buffer) {
     return btoa(binary);
 }
 
-async function notifyPoeTabs() {
+async function notifyPoeTabs(message = { type: 'LICENSE_UPDATED' }) {
     const tabs = await chrome.tabs.query({ url: '*://*.poe.com/*' });
-    await Promise.allSettled(tabs.map(tab => chrome.tabs.sendMessage(tab.id, { type: 'LICENSE_UPDATED' })));
+    await Promise.allSettled(tabs.map(tab => chrome.tabs.sendMessage(tab.id, message)));
+}
+
+async function hasOffscreenDocument() {
+    if (chrome.offscreen?.hasDocument) return chrome.offscreen.hasDocument();
+    if (chrome.runtime.getContexts) {
+        const contexts = await chrome.runtime.getContexts({
+            contextTypes: ['OFFSCREEN_DOCUMENT'],
+            documentUrls: [chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH)]
+        });
+        return contexts.length > 0;
+    }
+    return false;
+}
+
+async function ensureOffscreenDocument() {
+    if (!chrome.offscreen?.createDocument) {
+        throw new Error('This browser does not support extension-initiated automatic audio playback.');
+    }
+    if (await hasOffscreenDocument()) return;
+    if (!creatingOffscreenDocument) {
+        creatingOffscreenDocument = chrome.offscreen.createDocument({
+            url: OFFSCREEN_DOCUMENT_PATH,
+            reasons: ['AUDIO_PLAYBACK'],
+            justification: 'Automatically read newly received Poe chatbot responses aloud.'
+        }).catch(error => {
+            if (!/single offscreen document/i.test(error?.message || '')) throw error;
+        }).finally(() => {
+            creatingOffscreenDocument = null;
+        });
+    }
+    await creatingOffscreenDocument;
 }
 
 async function getLicenseState() {
@@ -54,6 +87,26 @@ async function synthesizeSpeech(text) {
         audioBase64: arrayBufferToBase64(await blob.arrayBuffer()),
         mimeType: blob.type || 'audio/mpeg'
     };
+}
+
+async function playSpeech(text) {
+    const speech = await synthesizeSpeech(text);
+    const { volume = 0.7 } = await chrome.storage.sync.get(['volume']);
+    await ensureOffscreenDocument();
+    const result = await chrome.runtime.sendMessage({
+        target: 'offscreen',
+        type: 'OFFSCREEN_PLAY_AUDIO',
+        ...speech,
+        volume: Number(volume)
+    });
+    if (!result?.success) throw new Error(result?.error || 'Automatic audio playback failed.');
+    return { success: true };
+}
+
+async function stopSpeech() {
+    if (!await hasOffscreenDocument()) return { success: true };
+    const result = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'OFFSCREEN_STOP_AUDIO' });
+    return result?.success === false ? result : { success: true };
 }
 
 async function recordPaymentReceipt(orderId, transactionId) {
@@ -93,12 +146,27 @@ async function recordSubscriptionReceipt(subscriptionId, planId, billingPeriod) 
 }
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+    if (request.target === 'offscreen') return false;
     if (request.type === 'GET_LICENSE_STATE') {
         getLicenseState().then(sendResponse).catch(error => sendResponse({ success: false, isValid: false, error: error.message }));
         return true;
     }
     if (request.type === 'SYNTHESIZE_SPEECH') {
         synthesizeSpeech(request.text).then(sendResponse).catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+    }
+    if (request.type === 'PLAY_SPEECH') {
+        playSpeech(request.text).then(sendResponse).catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+    }
+    if (request.type === 'STOP_SPEECH') {
+        stopSpeech().then(sendResponse).catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+    }
+    if (request.type === 'OFFSCREEN_PLAYBACK_FINISHED') {
+        notifyPoeTabs({ type: 'OFFSCREEN_PLAYBACK_FINISHED', error: request.error || '' })
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
         return true;
     }
     if (request.type === 'LICENSE_UPDATED') {
