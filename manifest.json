@@ -3,7 +3,7 @@
     "name": "Poe Voice Sync",
     "version": "1.2",
     "description": "Read Poe chatbot responses with ElevenLabs or Hume voices.",
-    "permissions": ["storage", "identity", "identity.email", "tabs", "offscreen"],
+    "permissions": ["storage", "tabs"],
     "host_permissions": [
         "*://*.poe.com/*",
         "https://api.elevenlabs.io/*",
@@ -11,12 +11,19 @@
         "https://gds-g.github.io/*"
     ],
     "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" },
-    "externally_connectable": {
-        "matches": ["https://gds-g.github.io/*"],
-        "accepts_tls_channel_id": false,
-        "ids": ["*"]
+    "background": { "scripts": ["background.js"], "type": "module" },
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "poe-voice-sync@gds-g.github.io",
+            "data_collection_permissions": {
+                "required": ["authenticationInfo", "websiteContent"]
+            },
+            "strict_min_version": "140.0"
+        },
+        "gecko_android": {
+            "strict_min_version": "142.0"
+        }
     },
-    "background": { "service_worker": "background.js", "type": "module" },
     "content_scripts": [
         {
             "matches": ["*://*.poe.com/*"],

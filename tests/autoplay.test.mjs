@@ -4,21 +4,21 @@ import test from 'node:test';
 
 const root = new URL('../', import.meta.url);
 
-test('automatic playback uses a Chromium offscreen audio document', async () => {
-    const [manifestText, background, content, offscreen, packager] = await Promise.all([
+test('automatic playback uses the Firefox background document', async () => {
+    const [manifestText, background, content, packager] = await Promise.all([
         readFile(new URL('manifest.json', root), 'utf8'),
         readFile(new URL('background.js', root), 'utf8'),
         readFile(new URL('content.js', root), 'utf8'),
-        readFile(new URL('offscreen.js', root), 'utf8'),
         readFile(new URL('scripts/package-production.mjs', root), 'utf8')
     ]);
     const manifest = JSON.parse(manifestText);
 
-    assert.ok(manifest.permissions.includes('offscreen'));
-    assert.match(background, /chrome\.offscreen\.createDocument/);
+    assert.equal(manifest.permissions.includes('offscreen'), false);
+    assert.deepEqual(manifest.background.scripts, ['background.js']);
+    assert.doesNotMatch(background, /chrome\.offscreen/);
     assert.match(background, /request\.type === 'PLAY_SPEECH'/);
+    assert.match(background, /backgroundAudio = new Audio/);
     assert.match(content, /backgroundPlayback: true/);
-    assert.match(offscreen, /await audio\.play\(\)/);
-    assert.match(packager, /'offscreen\.html'/);
-    assert.match(packager, /'offscreen\.js'/);
+    assert.doesNotMatch(packager, /'offscreen\.html'/);
+    assert.doesNotMatch(packager, /'offscreen\.js'/);
 });

@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const testStatus = document.getElementById('test-status');
     const signInContent = document.getElementById('sign-in-content');
     const signInButton = document.getElementById('sign-in-button');
+    const signInEmail = document.getElementById('sign-in-email');
     const signedInContent = document.getElementById('signed-in-content');
     const signOutButton = document.getElementById('sign-out-button');
     const userEmailSpan = document.getElementById('user-email');
@@ -329,7 +330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         signInButton.disabled = true;
         loadingIndicator.style.display = 'block';
         try {
-            const result = await authHandler.signIn();
+            const result = await authHandler.signIn(signInEmail.value);
             if (!result.success) throw new Error(result.error || 'Sign-in failed.');
             await checkAndInitialize({ attemptSilentSignIn: false });
         } catch (error) {

@@ -16,8 +16,6 @@ const runtimeFiles = [
     'license-token.js',
     'license-public-key.js',
     'manifest.json',
-    'offscreen.html',
-    'offscreen.js',
     'popup.css',
     'popup.html',
     'popup.js',
@@ -35,7 +33,13 @@ await rm(outputDirectory, { recursive: true, force: true });
 for (const file of runtimeFiles) {
     const destination = resolve(outputDirectory, file);
     await mkdir(dirname(destination), { recursive: true });
-    if (file === 'popup.html') {
+    if (file === 'manifest.json' && betaBundle) {
+        const manifest = JSON.parse(await readFile(resolve(file), 'utf8'));
+        manifest.browser_specific_settings.gecko.strict_min_version = '121.0';
+        delete manifest.browser_specific_settings.gecko.data_collection_permissions;
+        delete manifest.browser_specific_settings.gecko_android;
+        await writeFile(destination, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+    } else if (file === 'popup.html') {
         const popup = await readFile(resolve(file), 'utf8');
         await writeFile(destination, popup.replace(/\s*<script type="module" src="debug\.js"><\/script>/, ''), 'utf8');
     } else {
