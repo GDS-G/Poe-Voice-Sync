@@ -15,8 +15,11 @@
 
         <div id="auth-section">
             <div id="sign-in-content" style="display: none;">
-                <p>Sign in to verify your Poe Voice Sync license.</p>
-                <button type="button" id="sign-in-button" class="btn-save sign-in-button">Sign in with Chrome or Edge</button>
+                <p>Verify the email tied to your Poe Voice Sync license.</p>
+                <label class="visually-hidden" for="sign-in-email">License email</label>
+                <input type="email" id="sign-in-email" autocomplete="email" placeholder="License email (if browser profile is unavailable)">
+                <small>Chrome and Edge use the signed-in browser profile when available. Other Chromium browsers use this license email.</small>
+                <button type="button" id="sign-in-button" class="btn-save sign-in-button">Continue</button>
             </div>
             <div id="signed-in-content" style="display: none;">
                 <p>Signed in as: <span id="user-email"></span></p>
@@ -37,7 +40,7 @@
             <label for="license-token">Signed license token:</label>
             <textarea id="license-token" rows="4" spellcheck="false" autocomplete="off" placeholder="PVS1..."></textarea>
             <button type="button" id="activate-license" class="btn-save">Activate License</button>
-            <small>Production licenses are tied to the signed-in email and expire with the purchased access period.</small>
+            <small>Production licenses are signed, tied to the verified license email, and expire with the purchased access period.</small>
             <button type="button" id="activate-beta-license" class="btn-save beta-license-button" style="display: none;">Activate Local Beta License</button>
         </section>
 

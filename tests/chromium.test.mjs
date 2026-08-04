@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const root = new URL('../', import.meta.url);
 
-test('Chromium build supports Chrome and Edge profile identity without OAuth tokens', async () => {
+test('Chromium build uses profile identity with a manual fallback for compatible browsers', async () => {
     const [authSource, popupSource, manifestSource] = await Promise.all([
         readFile(new URL('auth.js', root), 'utf8'),
         readFile(new URL('popup.html', root), 'utf8'),
@@ -14,8 +14,11 @@ test('Chromium build supports Chrome and Edge profile identity without OAuth tok
 
     assert.match(authSource, /identity\.getProfileUserInfo/);
     assert.doesNotMatch(authSource, /identity\.getAuthToken|removeCachedAuthToken/);
-    assert.match(popupSource, /Sign in with Chrome or Edge/);
+    assert.match(popupSource, /id="sign-in-email"/);
+    assert.match(popupSource, /Other Chromium browsers use this license email/);
     assert.match(popupSource, /Activate Local Beta License/);
     assert.equal(manifest.oauth2, undefined);
+    assert.equal(manifest.permissions.includes('identity'), true);
+    assert.equal(manifest.permissions.includes('identity.email'), true);
     assert.equal(manifest.host_permissions.includes('https://accounts.google.com/*'), false);
 });

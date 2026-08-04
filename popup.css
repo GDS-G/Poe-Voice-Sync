@@ -35,6 +35,7 @@ label {
 }
 
 input[type="text"],
+input[type="email"],
 input[type="password"],
 textarea,
 select {
@@ -73,6 +74,22 @@ small {
     margin-top: 4px;
     color: #666;
     font-size: 12px;
+}
+
+#sign-in-email {
+    width: 100%;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
     small a {

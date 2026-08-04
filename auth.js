@@ -32,13 +32,25 @@ class AuthHandler {
         return false;
     }
 
-    async signIn() {
+    async signIn(emailInput = '') {
         try {
-            console.log('Reading the signed-in Chromium browser profile');
-            const profile = await chrome.identity.getProfileUserInfo({ accountStatus: 'ANY' });
-            const email = profile?.email?.trim().toLowerCase();
+            let profileEmail = '';
+            if (chrome.identity?.getProfileUserInfo) {
+                try {
+                    console.log('Reading the signed-in Chromium browser profile');
+                    const profile = await chrome.identity.getProfileUserInfo({ accountStatus: 'ANY' });
+                    profileEmail = profile?.email?.trim().toLowerCase() || '';
+                } catch (profileError) {
+                    console.info('Browser profile identity is unavailable; using license email.', profileError);
+                }
+            }
+
+            const email = profileEmail || emailInput.trim().toLowerCase();
             if (!email) {
-                throw new Error('Sign in to your Chrome or Edge browser profile, then try again.');
+                throw new Error('Enter the email address used to purchase your Poe Voice Sync license.');
+            }
+            if (!profileEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                throw new Error('Enter a valid license email address.');
             }
             return await this.handleAuthSuccess(email);
         } catch (error) {
@@ -73,7 +85,7 @@ class AuthHandler {
             };
         } catch (error) {
             console.error('Auth success handler error:', error);
-            throw new Error('Failed to store browser profile information: ' + error.message);
+            throw new Error('Failed to store the license identity: ' + error.message);
         }
     }
 
