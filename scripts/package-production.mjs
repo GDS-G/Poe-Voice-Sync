@@ -2,9 +2,10 @@ import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 
 const repositoryRoot = resolve('.');
-const outputDirectory = resolve('dist');
+const betaBundle = process.argv.includes('--beta');
+const outputDirectory = resolve(betaBundle ? 'dist-beta' : 'dist');
 if (relative(repositoryRoot, outputDirectory).startsWith(`..${sep}`) || outputDirectory === repositoryRoot) {
-    throw new Error('Production output must remain inside the repository.');
+    throw new Error('Extension output must remain inside the repository.');
 }
 
 const runtimeFiles = [
@@ -41,8 +42,10 @@ for (const file of runtimeFiles) {
 }
 await writeFile(
     resolve(outputDirectory, 'license-config.js'),
-    '// Production distribution: beta license generation and validation are disabled.\nexport const ALLOW_BETA_LICENSES = false;\n',
+    betaBundle
+        ? '// Local beta distribution: beta license validation is enabled.\nexport const ALLOW_BETA_LICENSES = true;\n'
+        : '// Production distribution: beta license generation and validation are disabled.\nexport const ALLOW_BETA_LICENSES = false;\n',
     'utf8'
 );
 
-console.log(`Production extension packaged at ${outputDirectory}`);
+console.log(`${betaBundle ? 'Beta' : 'Production'} extension packaged at ${outputDirectory}`);

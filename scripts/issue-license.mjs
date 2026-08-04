@@ -35,7 +35,7 @@ const expiresAt = expiresArgument
 if (!Number.isSafeInteger(expiresAt) || expiresAt <= nowSeconds) throw new Error('The requested expiration must be in the future.');
 
 const transactionHash = createHash('sha256').update(transaction).digest('hex');
-const secretsDirectory = resolve('.secrets');
+const secretsDirectory = resolve(process.env.PVS_SECRETS_DIR || '../Poe-Voice-Sync-Secrets');
 const ledgerPath = resolve(secretsDirectory, 'license-ledger.json');
 const privateKeyPath = resolve(secretsDirectory, 'poe-voice-sync-private-key.pem');
 let ledger = { version: 1, issuedTransactions: {} };

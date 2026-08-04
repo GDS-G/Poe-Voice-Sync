@@ -1,5 +1,6 @@
 import authHandler from './auth.js';
 import licenseHandler from './license.js';
+import { ALLOW_BETA_LICENSES } from './license-config.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const form = document.getElementById('settings-form');
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const purchaseLicenseButton = document.getElementById('purchase-license');
     const licenseTokenInput = document.getElementById('license-token');
     const activateLicenseButton = document.getElementById('activate-license');
+    const activateBetaLicenseButton = document.getElementById('activate-beta-license');
     const loadingIndicator = document.getElementById('loading-indicator');
     let activeProvider = 'elevenlabs';
     let initializing = true;
@@ -219,6 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         licensedContent.style.display = 'none';
         form.style.display = 'none';
         unlicensedContent.style.display = 'block';
+        activateBetaLicenseButton.style.display = ALLOW_BETA_LICENSES ? 'block' : 'none';
         if (message) showError(message);
     }
 
@@ -299,6 +302,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             showError(error.message);
         } finally {
             activateLicenseButton.disabled = false;
+            loadingIndicator.style.display = 'none';
+        }
+    });
+
+    activateBetaLicenseButton.addEventListener('click', async () => {
+        if (!ALLOW_BETA_LICENSES) return;
+        activateBetaLicenseButton.disabled = true;
+        loadingIndicator.style.display = 'block';
+        try {
+            const authState = await authHandler.getAuthState();
+            if (!authState.isAuthenticated || !authState.userEmail) throw new Error('Sign in before activating beta access.');
+            const result = await licenseHandler.generateLicenseKey(authState.userEmail, { isBeta: true });
+            if (!result.success) throw new Error(result.message || result.error || 'Beta activation failed.');
+            await checkAndInitialize({ attemptSilentSignIn: false });
+            showStatus('Local beta license activated.');
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            activateBetaLicenseButton.disabled = false;
             loadingIndicator.style.display = 'none';
         }
     });

@@ -2,4 +2,5 @@
 .vs/
 *.log
 dist/
+dist-beta/
 tmp/

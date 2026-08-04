@@ -27,28 +27,20 @@ class AuthHandler {
     }
 
     async silentSignIn() {
-        try {
-            console.log('Attempting silent sign-in');
-            const token = await chrome.identity.getAuthToken({ interactive: false });
-            if (token) {
-                console.log('Got token silently');
-                return await this.handleAuthSuccess(token);
-            }
-        } catch (error) {
-            console.log('Silent sign-in failed:', error);
-        }
+        // Edge profile identity cannot be revoked by an extension. Requiring an
+        // explicit click here ensures that signing out remains meaningful.
         return false;
     }
 
     async signIn() {
         try {
-            console.log('Starting interactive sign-in');
-            const token = await chrome.identity.getAuthToken({ interactive: true });
-            if (!token) {
-                throw new Error('Authentication failed');
+            console.log('Reading the signed-in Microsoft Edge profile');
+            const profile = await chrome.identity.getProfileUserInfo({ accountStatus: 'ANY' });
+            const email = profile?.email?.trim().toLowerCase();
+            if (!email) {
+                throw new Error('Sign in to Microsoft Edge with a Microsoft or Entra account, then try again.');
             }
-
-            return await this.handleAuthSuccess(token);
+            return await this.handleAuthSuccess(email);
         } catch (error) {
             console.error('Sign in error:', error);
             return {
@@ -58,59 +50,38 @@ class AuthHandler {
         }
     }
 
-    async handleAuthSuccess(token) {
+    async handleAuthSuccess(email) {
         try {
-            console.log('Handling successful authentication');
-            // Get user info using the auth token
-            const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-                headers: { Authorization: `Bearer ${token.token}` }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to get user info');
-            }
-
-            const userInfo = await response.json();
-            console.log('Got user info:', userInfo.email);
+            console.log('Got Edge profile email:', email);
 
             // Store auth state in both storages
             await Promise.all([
                 chrome.storage.sync.set({
                     isAuthenticated: true,
-                    userEmail: userInfo.email
+                    userEmail: email
                 }),
                 chrome.storage.local.set({
                     isAuthenticated: true,
-                    userEmail: userInfo.email
+                    userEmail: email
                 })
             ]);
 
             this.isAuthenticated = true;
-            this.userEmail = userInfo.email;
+            this.userEmail = email;
 
             return {
                 success: true,
-                email: userInfo.email
+                email
             };
         } catch (error) {
             console.error('Auth success handler error:', error);
-            throw new Error('Failed to get user info: ' + error.message);
+            throw new Error('Failed to store Edge profile information: ' + error.message);
         }
     }
 
     async signOut() {
         try {
             console.log('Starting sign-out process');
-            // Get current token
-            const token = await chrome.identity.getAuthToken({ interactive: false });
-
-            if (token) {
-                // Revoke token
-                await fetch(`https://accounts.google.com/o/oauth2/revoke?token=${token.token}`);
-                // Remove from cache
-                await chrome.identity.removeCachedAuthToken({ token: token.token });
-            }
-
             // Only remove auth state, preserve license data
             const keysToRemove = ['userEmail', 'isAuthenticated'];
             await Promise.all([

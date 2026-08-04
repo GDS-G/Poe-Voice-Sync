@@ -3,7 +3,7 @@ import { access, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const force = process.argv.includes('--force');
-const secretsDirectory = resolve('.secrets');
+const secretsDirectory = resolve(process.env.PVS_SECRETS_DIR || '../Poe-Voice-Sync-Secrets');
 const privateKeyPath = resolve(secretsDirectory, 'poe-voice-sync-private-key.pem');
 const publicKeyModulePath = resolve('license-public-key.js');
 
@@ -34,7 +34,7 @@ await mkdir(secretsDirectory, { recursive: true });
 await writeFile(privateKeyPath, privatePem, { encoding: 'utf8', mode: 0o600 });
 await writeFile(
     publicKeyModulePath,
-    `// Public verification key. The matching private key must remain in .secrets and must never be committed.\nexport default Object.freeze(${JSON.stringify(publicJwk, null, 4)});\n`,
+    `// Public verification key. The matching private key must remain outside the extension source tree and must never be committed.\nexport default Object.freeze(${JSON.stringify(publicJwk, null, 4)});\n`,
     'utf8'
 );
 

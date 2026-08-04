@@ -4,10 +4,15 @@ Chrome extension that reads Poe chatbot responses aloud with either ElevenLabs o
 
 ## Local beta installation
 
-1. Open `chrome://extensions` in Google Chrome.
-2. Enable **Developer mode**.
-3. Choose **Load unpacked** and select this repository directory.
-4. Pin **Poe Voice Sync**, sign in, and configure a provider, API key, and voice.
+1. Run `npm run package:beta` to create a clean, secret-free `dist-beta/` bundle.
+2. Open `chrome://extensions` in Google Chrome.
+3. Enable **Developer mode**.
+4. Choose **Load unpacked** and select the generated `dist-beta/` directory. Never load the repository root; browser testing should use only the allowlisted bundle.
+5. Pin **Poe Voice Sync**, sign in, and configure a provider, API key, and voice.
+
+## Microsoft Edge build
+
+The Edge release branch uses the signed-in Microsoft Edge profile for explicit account verification because Edge does not support Chrome's `identity.getAuthToken` API. Users must be signed in to Edge with a Microsoft or Entra account, then click **Sign in with Microsoft Edge** in the extension popup. Signing out of Poe Voice Sync clears only the extension session; it does not sign the browser profile out.
 
 The provider menu uses one API-key field while remembering separate ElevenLabs and Hume keys. Personalized voices appear first: ElevenLabs cloned/generated/professional voices are grouped above premade voices, and Hume custom voices are grouped above the shared Hume Voice Library.
 
@@ -30,7 +35,7 @@ The build validates the Manifest V3 bundle, required permissions/files, and Java
 
 ## No-cost manual production licensing
 
-Production licenses use ECDSA P-256 signatures. The private signing key stays only in `.secrets/` on the issuer's computer; the extension contains only the public verification key. A buyer cannot generate or modify a production license, and each license is bound to the buyer's signed-in email and an expiration date.
+Production licenses use ECDSA P-256 signatures. By default, the private signing key and issuance ledger stay in the sibling `../Poe-Voice-Sync-Secrets/` directory, outside the extension source tree; set `PVS_SECRETS_DIR` to use another protected location. The extension contains only the public verification key. A buyer cannot generate or modify a production license, and each license is bound to the buyer's signed-in email and an expiration date.
 
 The initial key pair has already been generated for this workspace. To create a new installation from scratch, run this exactly once:
 
@@ -44,7 +49,7 @@ After independently confirming the payment or active subscription in the PayPal 
 npm run license:issue -- --email buyer@example.com --transaction PAYPAL_REFERENCE --plan monthly --days 31
 ```
 
-Alternatively, use `--expires YYYY-MM-DD` instead of `--days`. The issuer refuses to reuse a PayPal transaction reference and records issuance in the ignored `.secrets/license-ledger.json` file. Send the printed `PVS1...` token to the buyer, who enters it in the extension popup. Back up the private key and ledger securely; losing the private key prevents issuing compatible renewals, while exposing it allows forged licenses.
+Alternatively, use `--expires YYYY-MM-DD` instead of `--days`. The issuer refuses to reuse a PayPal transaction reference and records issuance in the external secrets directory's `license-ledger.json` file. Send the printed `PVS1...` token to the buyer, who enters it in the extension popup. Back up the private key and ledger securely; losing the private key prevents issuing compatible renewals, while exposing it allows forged licenses.
 
 The hosted payment page records an unverified receipt but never activates production access. Until a no-cost or paid verification service is deployed, the merchant must verify each PayPal payment manually before issuing a signed token. A future server can replace this manual issuer without changing the signed token format or extension verification path.
 

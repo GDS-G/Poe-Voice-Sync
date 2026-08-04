@@ -8,21 +8,13 @@
         "*://*.poe.com/*",
         "https://api.elevenlabs.io/*",
         "https://api.hume.ai/*",
-        "https://gds-g.github.io/*",
-        "https://accounts.google.com/*"
+        "https://gds-g.github.io/*"
     ],
     "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" },
     "externally_connectable": {
         "matches": ["https://gds-g.github.io/*"],
         "accepts_tls_channel_id": false,
         "ids": ["*"]
-    },
-    "oauth2": {
-        "client_id": "727891588328-2r740eebr2e7bqa4nd7q8pru4abifp6r.apps.googleusercontent.com",
-        "scopes": [
-            "https://www.googleapis.com/auth/userinfo.email",
-            "https://www.googleapis.com/auth/userinfo.profile"
-        ]
     },
     "background": { "service_worker": "background.js", "type": "module" },
     "content_scripts": [
