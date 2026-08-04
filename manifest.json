@@ -3,7 +3,7 @@
     "name": "Poe Voice Sync",
     "version": "1.2",
     "description": "Read Poe chatbot responses with ElevenLabs or Hume voices.",
-    "permissions": ["storage", "identity", "identity.email", "tabs", "offscreen"],
+    "permissions": ["storage", "tabs", "offscreen"],
     "host_permissions": [
         "*://*.poe.com/*",
         "https://api.elevenlabs.io/*",

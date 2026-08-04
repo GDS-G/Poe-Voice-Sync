@@ -3,4 +3,5 @@
 *.log
 dist/
 dist-beta/
+web-ext-artifacts/
 tmp/
