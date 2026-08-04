@@ -2,34 +2,22 @@
 (function() {
     function resultMessage(message, isError = false) {
         const messageElement = document.getElementById('result-message');
-        messageElement.innerHTML = message;
+        messageElement.textContent = message;
         messageElement.className = isError ? 'error' : 'success';
     }
 
-    // Function to handle payment notification
-    async function notifyPaymentComplete(paymentData) {
-        // Try direct extension messaging first
+    async function recordPaymentReceipt(paymentData) {
         if (window.extId) {
             try {
-                await chrome.runtime.sendMessage(window.extId, {
+                const response = await chrome.runtime.sendMessage(window.extId, {
                     type: 'PAYMENT_COMPLETE',
                     ...paymentData
                 });
-                return true;
+                return response?.status !== 'error';
             } catch (error) {
                 console.log('Direct extension message failed:', error);
             }
         }
-
-        // Fallback to opener messaging
-        if (window.opener && !window.opener.closed) {
-            window.opener.postMessage({
-                type: 'PAYMENT_COMPLETE',
-                ...paymentData
-            }, '*');
-            return true;
-        }
-
         return false;
     }
 
@@ -62,34 +50,27 @@
                         const transaction = orderData?.purchase_units?.[0]?.payments?.captures?.[0];
 
                         if (transaction?.status === "COMPLETED") {
-                            resultMessage(`
-                                Payment successful!<br>
-                                Processing license activation...
-                            `);
+                            resultMessage('Payment successful. Recording the receipt for license verification...');
 
                             const paymentData = {
                                 orderId: orderData.id,
                                 transactionId: transaction.id
                             };
 
-                            // Attempt to notify about payment
-                            const notified = await notifyPaymentComplete(paymentData);
+                            const receiptRecorded = await recordPaymentReceipt(paymentData);
 
-                            if (notified) {
-                                resultMessage(`
-                                    Payment successful!<br>
-                                    Please close this window and click the extension icon to complete activation.
-                                `);
-
-                                // Wait a moment before closing
-                                setTimeout(() => {
-                                    window.close();
-                                }, 3000);
+                            if (receiptRecorded) {
+                                resultMessage(
+                                    `Payment successful.\nTransaction: ${transaction.id}\n` +
+                                    'Your receipt must be verified before a signed license is issued. ' +
+                                    'Send the transaction reference and the email used in Poe Voice Sync to admin@ascensionrealmstudios.com.'
+                                );
                             } else {
-                                resultMessage(`
-                                    Payment successful but couldn't notify extension.<br>
-                                    Please close this window and click the extension icon.
-                                `, true);
+                                resultMessage(
+                                    `Payment successful, but the extension could not record the receipt.\nTransaction: ${transaction.id}\n` +
+                                    'Send this transaction reference and the email used in Poe Voice Sync to admin@ascensionrealmstudios.com.',
+                                    true
+                                );
                             }
                         } else if (transaction?.status === "INSTRUMENT_DECLINED") {
                             return actions.restart();
@@ -98,19 +79,13 @@
                         }
                     } catch (error) {
                         console.error('Payment error:', error);
-                        resultMessage(`
-                            Transaction failed:<br>
-                            ${error.message || error}
-                        `, true);
+                        resultMessage(`Transaction failed:\n${error.message || error}`, true);
                     }
                 },
 
                 onError: function(err) {
                     console.error('PayPal error:', err);
-                    resultMessage(`
-                        Payment Error:<br>
-                        ${err.message || err}
-                    `, true);
+                    resultMessage(`Payment Error:\n${err.message || err}`, true);
                 }
             })
             .render("#paypal-button-container")

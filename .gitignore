@@ -1,0 +1,5 @@
+.secrets/
+.vs/
+*.log
+dist/
+tmp/

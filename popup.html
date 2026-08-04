@@ -3,97 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POE Voice Settings</title>
+    <title>Poe Voice Settings</title>
     <link rel="stylesheet" href="popup.css">
-    <!-- Add debug script first -->
     <script type="module" src="debug.js"></script>
 </head>
 <body>
     <div class="container">
         <div class="logo-container">
-            <img src="icons/logo.png" alt="POE Voice Settings" class="header-logo">
+            <img src="icons/logo.png" alt="Poe Voice Sync" class="header-logo">
         </div>
 
-        <!-- Auth Section -->
         <div id="auth-section">
             <div id="sign-in-content" style="display: none;">
-                <!-- This div is now just a placeholder for the auth state -->
+                <p>Sign in to verify your Poe Voice Sync license.</p>
+                <button type="button" id="sign-in-button" class="btn-save sign-in-button">Sign in with Google</button>
             </div>
-
             <div id="signed-in-content" style="display: none;">
                 <p>Signed in as: <span id="user-email"></span></p>
                 <div id="licensed-content" class="license-status-fade" style="display: none;">
-                    <p class="license-active">✓ License Active</p>
+                    <p class="license-active">License Active</p>
+                    <p id="license-expiration" class="license-expiration"></p>
                 </div>
-                <button id="sign-out-button" class="sign-out-button">
+                <button id="sign-out-button" class="sign-out-button" aria-label="Sign out">
                     <img src="icons/SignOut.png" alt="Sign Out" class="sign-out-icon">
                 </button>
             </div>
         </div>
 
-        <!-- Loading Indicator -->
+        <section id="unlicensed-content" class="license-activation" style="display: none;">
+            <h2>Activate Poe Voice Sync</h2>
+            <p>Purchase access, then enter the signed license supplied after payment verification.</p>
+            <button type="button" id="purchase-license" class="btn-primary">Purchase with PayPal</button>
+            <label for="license-token">Signed license token:</label>
+            <textarea id="license-token" rows="4" spellcheck="false" autocomplete="off" placeholder="PVS1..."></textarea>
+            <button type="button" id="activate-license" class="btn-save">Activate License</button>
+            <small>Production licenses are tied to the signed-in email and expire with the purchased access period.</small>
+        </section>
+
         <div id="loading-indicator" class="loading-indicator" style="display: none;">
             <div class="spinner"></div>
             <p>Processing...</p>
         </div>
 
-        <!-- Settings Form -->
         <form id="settings-form" style="display: none;">
             <div class="form-group">
-                <label for="api-key">ElevenLabs API Key:</label>
-                <input type="password"
-                       id="api-key"
-                       name="api-key"
-                       placeholder="Enter your ElevenLabs API key"
-                       required>
-                <small>
-                    <a href="https://elevenlabs.io/speech-synthesis" target="_blank">Get an API key</a>
-                </small>
+                <label for="tts-provider">Voice provider:</label>
+                <select id="tts-provider" name="tts-provider" required>
+                    <option value="elevenlabs">ElevenLabs</option>
+                    <option value="hume">Hume</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="api-key" id="api-key-label">ElevenLabs API Key:</label>
+                <input type="password" id="api-key" name="api-key" placeholder="Enter your ElevenLabs API key" required>
+                <small><a id="api-key-link" href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noreferrer">Get an API key</a></small>
+                <small class="provider-note">The field is shared; each provider's key is remembered separately.</small>
             </div>
 
             <div class="form-group">
                 <label for="voice-selection">Voice:</label>
-                <select id="voice-selection"
-                        name="voice-selection"
-                        required>
-                    <option value="">Loading voices...</option>
+                <select id="voice-selection" name="voice-selection" required>
+                    <option value="">Enter an API key to load voices</option>
                 </select>
             </div>
 
             <div class="form-group test-container">
                 <button type="button" id="test-tts" class="test-button">Test Voice</button>
-                <span id="test-status"></span>
+                <span id="test-status" aria-live="polite"></span>
             </div>
 
             <div class="form-group">
                 <label>
-                    <input type="checkbox"
-                           id="enable-speech"
-                           name="enable-speech"
-                           checked>
+                    <input type="checkbox" id="enable-speech" name="enable-speech" checked>
                     Auto-read new messages
                 </label>
             </div>
 
             <div class="form-group">
                 <label for="volume">Volume:</label>
-                <input type="range"
-                       id="volume"
-                       name="volume"
-                       min="0"
-                       max="1"
-                       step="0.1"
-                       value="0.7">
+                <input type="range" id="volume" name="volume" min="0" max="1" step="0.1" value="0.7">
                 <span class="volume-label">70%</span>
             </div>
 
             <button type="submit" class="btn-save">Save Settings</button>
         </form>
 
-        <div id="status-message"></div>
+        <div id="status-message" aria-live="polite"></div>
     </div>
 
-    <!-- Add module scripts -->
+    <script src="tts.js"></script>
     <script type="module" src="popup.js"></script>
 </body>
 </html>

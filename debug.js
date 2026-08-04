@@ -1,39 +1,35 @@
-// debug.js
 import licenseHandler from './license.js';
 
-// Expose license handler for debugging
 window.debugLicenseHandler = licenseHandler;
-
-// Add debug helper functions
 window.debug = {
-    async enableDebugMode() {
-        await window.debugLicenseHandler.setDebugMode(true);
-        console.log('Debug mode enabled');
+    enableDebugMode() {
+        const result = licenseHandler.setDebugMode(true);
+        console.log('Poe Voice Sync debug mode enabled.', result);
+        return result;
     },
-    
     async setBetaMode() {
-        await window.debugLicenseHandler.setLicenseMode('beta');
-        console.log('Beta mode enabled');
+        const result = await licenseHandler.setLicenseMode('beta');
+        console.log('Beta license mode result:', result);
+        return result;
     },
-    
     async setProductionMode() {
-        await window.debugLicenseHandler.setLicenseMode('prod');
-        console.log('Production mode enabled');
+        const result = await licenseHandler.setLicenseMode('prod');
+        console.log('Production license mode result:', result);
+        return result;
     },
-    
     async deactivateLicense() {
-        await window.debugLicenseHandler.toggleLicenseStatus(false);
-        console.log('License deactivated');
+        const result = await licenseHandler.toggleLicenseStatus(false);
+        console.log('License deactivation result:', result);
+        return result;
     },
-    
     async activateLicense() {
-        await window.debugLicenseHandler.toggleLicenseStatus(true);
-        console.log('License activated');
+        const result = await licenseHandler.toggleLicenseStatus(true);
+        console.log('License activation result:', result);
+        return result;
     },
-    
     async getLicenseStatus() {
-        const status = await window.debugLicenseHandler.getLicense();
-        console.log('License status:', status);
-        return status;
+        const result = await licenseHandler.getLicense();
+        console.log('License status:', result);
+        return result;
     }
 };

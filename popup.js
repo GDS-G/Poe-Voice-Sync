@@ -1,320 +1,35 @@
-// popup.js
 import authHandler from './auth.js';
 import licenseHandler from './license.js';
 
-// Make licenseHandler available in console for debugging
-window.debugLicenseHandler = licenseHandler;
-
 document.addEventListener('DOMContentLoaded', async () => {
-    // Get all DOM elements
     const form = document.getElementById('settings-form');
+    const providerSelect = document.getElementById('tts-provider');
     const apiKeyInput = document.getElementById('api-key');
+    const apiKeyLabel = document.getElementById('api-key-label');
+    const apiKeyLink = document.getElementById('api-key-link');
     const voiceSelection = document.getElementById('voice-selection');
     const volumeSlider = document.getElementById('volume');
     const volumeLabel = document.querySelector('.volume-label');
     const enableSpeechCheckbox = document.getElementById('enable-speech');
     const testButton = document.getElementById('test-tts');
+    const testStatus = document.getElementById('test-status');
     const signInContent = document.getElementById('sign-in-content');
+    const signInButton = document.getElementById('sign-in-button');
     const signedInContent = document.getElementById('signed-in-content');
     const signOutButton = document.getElementById('sign-out-button');
     const userEmailSpan = document.getElementById('user-email');
     const licensedContent = document.getElementById('licensed-content');
+    const licenseExpiration = document.getElementById('license-expiration');
+    const unlicensedContent = document.getElementById('unlicensed-content');
+    const purchaseLicenseButton = document.getElementById('purchase-license');
+    const licenseTokenInput = document.getElementById('license-token');
+    const activateLicenseButton = document.getElementById('activate-license');
     const loadingIndicator = document.getElementById('loading-indicator');
+    let activeProvider = 'elevenlabs';
+    let initializing = true;
 
-    // Initial UI update
-    await checkAndInitialize();
-
-    // Listen for license updates
-    chrome.runtime.onMessage.addListener((message) => {
-        if (message.type === 'LICENSE_UPDATED') {
-            checkAndInitialize();
-        }
-    });
-
-    async function checkAndInitialize() {
-        loadingIndicator.style.display = 'block';
-        try {
-            console.log('Starting initialization check');
-
-            // First check auth state
-            const authState = await authHandler.getAuthState();
-            console.log('Auth state:', authState);
-
-            if (!authState.isAuthenticated) {
-                console.log('Not authenticated, attempting silent sign-in');
-                const silentSignIn = await authHandler.silentSignIn();
-                if (!silentSignIn) {
-                    console.log('Silent sign-in failed, initiating interactive sign-in');
-                    await authHandler.signIn();
-                }
-            }
-
-            // Get fresh auth state after potential sign in
-            const currentAuthState = await authHandler.getAuthState();
-            if (!currentAuthState.isAuthenticated) {
-                console.log('Still not authenticated after sign-in attempt');
-                return;
-            }
-
-            // Check for stored payment data
-            const paymentDataStr = localStorage.getItem('poeVoiceSyncPayment');
-            console.log('Found payment data:', paymentDataStr);
-
-            if (paymentDataStr) {
-                console.log('Processing stored payment data');
-                const paymentData = JSON.parse(paymentDataStr);
-                localStorage.removeItem('poeVoiceSyncPayment');
-
-                // Process the payment with background script
-                await chrome.runtime.sendMessage({
-                    type: 'PAYMENT_COMPLETE',
-                    orderId: paymentData.orderId,
-                    transactionId: paymentData.transactionId
-                });
-
-                // Wait for storage to sync
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            // Try to restore license first
-            console.log('Attempting to restore license for:', currentAuthState.userEmail);
-            const restored = await licenseHandler.restoreLicense(currentAuthState.userEmail);
-            console.log('License restore attempt result:', restored);
-
-            // Then verify license status
-            const verification = await licenseHandler.verifyLicenseForEmail(currentAuthState.userEmail);
-            console.log('License verification:', verification);
-
-            if (verification.success && verification.isValid) {
-                console.log('License is valid, showing interface');
-                await showInterface(currentAuthState.userEmail);
-            } else {
-                // Check storage for any existing license
-                const [syncData, localData] = await Promise.all([
-                    chrome.storage.sync.get(['licenseKey', 'licensedEmail']),
-                    chrome.storage.local.get(['licenseKey', 'licensedEmail'])
-                ]);
-
-                const existingLicense = syncData.licenseKey ? syncData : localData;
-
-                if (existingLicense.licenseKey && existingLicense.licensedEmail === currentAuthState.userEmail) {
-                    console.log('Found existing license, activating');
-                    const reactivated = await licenseHandler.restoreLicense(currentAuthState.userEmail);
-                    if (reactivated.success) {
-                        await showInterface(currentAuthState.userEmail);
-                        return;
-                    }
-                }
-
-                console.log('No valid license found, showing payment page');
-                openPaymentPage();
-            }
-        } catch (error) {
-            console.error('Initialization error:', error);
-            showError('Initialization failed: ' + error.message);
-        } finally {
-            loadingIndicator.style.display = 'none';
-        }
-    }
-
-    async function showInterface(userEmail) {
-        signInContent.style.display = 'none';
-        signedInContent.style.display = 'block';
-        userEmailSpan.textContent = userEmail;
-        licensedContent.style.display = 'block';
-        form.style.display = 'block';
-        await loadInitialSettings();
-    }
-
-    function openPaymentPage() {
-        const width = 500;
-        const height = 600;
-        const left = Math.floor((screen.width - width) / 2);
-        const top = Math.floor((screen.height - height) / 2);
-
-        const paymentWindow = window.open(
-            `https://gds-g.github.io/Poe-Voice-Sync/payment/payment.html?extId=${chrome.runtime.id}`,
-            'POE Voice Sync Payment',
-            `width=${width},height=${height},left=${left},top=${top}`
-        );
-
-        // Close the popup
-        window.close();
-    }
-
-    async function loadInitialSettings() {
-        const settings = await chrome.storage.sync.get(['apiKey', 'voice', 'volume', 'enabled']);
-
-        if (settings.apiKey) {
-            apiKeyInput.value = settings.apiKey;
-            await fetchVoices(settings.apiKey);
-        }
-
-        if (settings.voice) {
-            setTimeout(() => {
-                voiceSelection.value = settings.voice;
-                if (voiceSelection.selectedIndex === -1) {
-                    voiceSelection.selectedIndex = 0;
-                    chrome.storage.sync.set({ voice: voiceSelection.value });
-                }
-            }, 500);
-        }
-
-        volumeSlider.value = settings.volume ?? 0.7;
-        updateVolumeLabel();
-        enableSpeechCheckbox.checked = settings.enabled ?? true;
-    }
-
-    function showError(message) {
-        const statusDiv = document.getElementById('status-message');
-        statusDiv.textContent = message;
-        statusDiv.className = 'status-message error';
-        statusDiv.style.display = 'block';
-        setTimeout(() => {
-            statusDiv.style.display = 'none';
-        }, 3000);
-    }
-
-    function updateVolumeLabel() {
-        const value = Math.round(volumeSlider.value * 100);
-        volumeLabel.textContent = `${value}%`;
-    }
-
-    async function saveSettings() {
-        const settings = {
-            apiKey: apiKeyInput.value.trim(),
-            voice: voiceSelection.value,
-            volume: parseFloat(volumeSlider.value),
-            enabled: enableSpeechCheckbox.checked
-        };
-
-        await chrome.storage.sync.set(settings);
-
-        // Notify all tabs about the settings change
-        const tabs = await chrome.tabs.query({ url: "*://*.poe.com/*" });
-        tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, {
-                type: 'SETTINGS_UPDATED',
-                settings: settings
-            }).catch(() => {
-                // Ignore errors for inactive tabs
-            });
-        });
-
-        showStatus('Settings saved!', 'success');
-    }
-
-    // Event listeners
-    signOutButton.addEventListener('click', async () => {
-        loadingIndicator.style.display = 'block';
-        try {
-            await authHandler.signOut();
-            window.close();
-        } catch (error) {
-            showError('Sign out error: ' + error.message);
-        } finally {
-            loadingIndicator.style.display = 'none';
-        }
-    });
-
-    volumeSlider.addEventListener('input', () => {
-        updateVolumeLabel();
-        saveSettings();
-    });
-
-    enableSpeechCheckbox.addEventListener('change', saveSettings);
-    voiceSelection.addEventListener('change', saveSettings);
-
-    testButton.addEventListener('click', async () => {
-        const apiKey = apiKeyInput.value.trim();
-        if (!apiKey) {
-            alert('Please enter an API key first');
-            return;
-        }
-
-        testButton.disabled = true;
-        const testStatus = document.createElement('span');
-        testStatus.textContent = ' Testing...';
-        testButton.parentNode.appendChild(testStatus);
-
-        try {
-            const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + voiceSelection.value, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'audio/mpeg',
-                    'Content-Type': 'application/json',
-                    'xi-api-key': apiKey
-                },
-                body: JSON.stringify({
-                    text: 'This is a test of the voice settings.',
-                    model_id: 'eleven_multilingual_v2',
-                    voice_settings: {
-                        stability: 0.5,
-                        similarity_boost: 0.75
-                    }
-                })
-            });
-
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-            const blob = await response.blob();
-            const audio = new Audio(URL.createObjectURL(blob));
-            audio.volume = volumeSlider.value;
-            await audio.play();
-            testStatus.textContent = ' Test successful!';
-
-        } catch (error) {
-            console.error('Test failed:', error);
-            testStatus.textContent = ' Test failed: ' + error.message;
-        } finally {
-            testButton.disabled = false;
-            setTimeout(() => testStatus.remove(), 3000);
-        }
-    });
-
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        saveSettings();
-    });
-
-    async function fetchVoices(apiKey) {
-        try {
-            const response = await fetch('https://api.elevenlabs.io/v1/voices', {
-                headers: {
-                    'Accept': 'application/json',
-                    'xi-api-key': apiKey
-                }
-            });
-
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-
-            voiceSelection.innerHTML = '';
-            data.voices.forEach(voice => {
-                const option = document.createElement('option');
-                option.value = voice.voice_id;
-                option.textContent = voice.name;
-                voiceSelection.appendChild(option);
-            });
-
-            chrome.storage.sync.get(['voice'], (data) => {
-                if (data.voice) {
-                    voiceSelection.value = data.voice;
-                }
-            });
-
-        } catch (error) {
-            console.error('Error fetching voices:', error);
-            voiceSelection.innerHTML = '<option value="">Error loading voices</option>';
-        }
-    }
-
-    apiKeyInput.addEventListener('change', () => {
-        const apiKey = apiKeyInput.value.trim();
-        if (apiKey) {
-            fetchVoices(apiKey);
-        }
-        saveSettings();
+    chrome.runtime.onMessage.addListener(message => {
+        if (message.type === 'LICENSE_UPDATED') checkAndInitialize();
     });
 
     function showStatus(message, type = 'success') {
@@ -322,8 +37,324 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusDiv.textContent = message;
         statusDiv.className = `status-message ${type}`;
         statusDiv.style.display = 'block';
-        setTimeout(() => {
-            statusDiv.style.display = 'none';
-        }, 3000);
+        setTimeout(() => { statusDiv.style.display = 'none'; }, 4000);
     }
+
+    function showError(message) {
+        showStatus(message, 'error');
+    }
+
+    function updateVolumeLabel() {
+        volumeLabel.textContent = `${Math.round(Number(volumeSlider.value) * 100)}%`;
+    }
+
+    function updateProviderUi() {
+        const info = PoeVoiceTTS.getProviderInfo(activeProvider);
+        providerSelect.value = activeProvider;
+        apiKeyLabel.textContent = `${info.label} API Key:`;
+        apiKeyInput.placeholder = info.apiKeyPlaceholder;
+        apiKeyLink.href = info.apiKeyUrl;
+        apiKeyLink.textContent = `Get a ${info.label} API key`;
+    }
+
+    function selectedVoice() {
+        const option = voiceSelection.selectedOptions[0];
+        return {
+            id: voiceSelection.value,
+            provider: option?.dataset.voiceProvider || (activeProvider === 'hume' ? 'HUME_AI' : 'ELEVENLABS')
+        };
+    }
+
+    async function storageSnapshot() {
+        return chrome.storage.sync.get([
+            'ttsProvider', 'apiKey', 'apiKeys', 'voice', 'voices', 'humeVoiceProvider',
+            'volume', 'enabled'
+        ]);
+    }
+
+    async function persistProvider(provider, notify = false) {
+        const stored = await storageSnapshot();
+        const apiKeys = { ...(stored.apiKeys || {}), [provider]: apiKeyInput.value.trim() };
+        const voices = { ...(stored.voices || {}), [provider]: selectedVoice() };
+        const settings = {
+            ttsProvider: provider,
+            apiKeys,
+            voices,
+            apiKey: apiKeys[provider] || '',
+            voice: voices[provider]?.id || '',
+            humeVoiceProvider: voices[provider]?.provider || null,
+            volume: Number(volumeSlider.value),
+            enabled: enableSpeechCheckbox.checked
+        };
+        await chrome.storage.sync.set(settings);
+        if (notify) await notifyPoeTabs(settings);
+        return settings;
+    }
+
+    async function notifyPoeTabs(settings) {
+        const tabs = await chrome.tabs.query({ url: '*://*.poe.com/*' });
+        await Promise.allSettled(tabs.map(tab => chrome.tabs.sendMessage(tab.id, {
+            type: 'SETTINGS_UPDATED',
+            settings
+        })));
+    }
+
+    function addVoiceOptions(voices, preferredVoiceId) {
+        voiceSelection.textContent = '';
+        const orderedVoices = PoeVoiceTTS.orderVoices(activeProvider, voices);
+        const addOptions = (parent, groupVoices) => {
+            groupVoices.forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.id;
+                option.textContent = voice.name;
+                option.dataset.voiceProvider = voice.provider;
+                parent.appendChild(option);
+            });
+        };
+
+        if (activeProvider === 'hume') {
+            const custom = orderedVoices.filter(voice => PoeVoiceTTS.isPersonalizedVoice(activeProvider, voice));
+            const library = orderedVoices.filter(voice => !PoeVoiceTTS.isPersonalizedVoice(activeProvider, voice));
+            if (custom.length) {
+                const group = document.createElement('optgroup');
+                group.label = 'My Hume Voices';
+                addOptions(group, custom);
+                voiceSelection.appendChild(group);
+            }
+            if (library.length) {
+                const group = document.createElement('optgroup');
+                group.label = 'Hume Voice Library';
+                addOptions(group, library);
+                voiceSelection.appendChild(group);
+            }
+        } else {
+            const personal = orderedVoices.filter(voice => PoeVoiceTTS.isPersonalizedVoice(activeProvider, voice));
+            const library = orderedVoices.filter(voice => !PoeVoiceTTS.isPersonalizedVoice(activeProvider, voice));
+            if (personal.length) {
+                const group = document.createElement('optgroup');
+                group.label = 'My ElevenLabs Voices';
+                addOptions(group, personal);
+                voiceSelection.appendChild(group);
+            }
+            if (library.length) {
+                const group = document.createElement('optgroup');
+                group.label = 'ElevenLabs Voice Library';
+                addOptions(group, library);
+                voiceSelection.appendChild(group);
+            }
+        }
+
+        if (preferredVoiceId && orderedVoices.some(voice => voice.id === preferredVoiceId)) {
+            voiceSelection.value = preferredVoiceId;
+        } else if (voiceSelection.options.length) {
+            voiceSelection.selectedIndex = 0;
+        }
+    }
+
+    async function fetchVoices(apiKey, preferredVoiceId = '') {
+        voiceSelection.disabled = true;
+        voiceSelection.innerHTML = '<option value="">Loading voices...</option>';
+        try {
+            const voices = await PoeVoiceTTS.fetchVoices(activeProvider, apiKey);
+            addVoiceOptions(voices, preferredVoiceId);
+        } catch (error) {
+            console.error('Error fetching voices:', error);
+            voiceSelection.innerHTML = '<option value="">Error loading voices</option>';
+            showError(error.message);
+        } finally {
+            voiceSelection.disabled = false;
+        }
+    }
+
+    async function loadProvider(provider, stored) {
+        activeProvider = PoeVoiceTTS.normalizeProvider(provider);
+        updateProviderUi();
+        const apiKeys = { ...(stored.apiKeys || {}) };
+        const voices = { ...(stored.voices || {}) };
+        if (!stored.ttsProvider && stored.apiKey && !apiKeys.elevenlabs) apiKeys.elevenlabs = stored.apiKey;
+        if (!stored.ttsProvider && stored.voice && !voices.elevenlabs) voices.elevenlabs = { id: stored.voice, provider: 'ELEVENLABS' };
+        apiKeyInput.value = apiKeys[activeProvider] || '';
+        const preferredVoice = voices[activeProvider]?.id || '';
+        if (apiKeyInput.value) {
+            await fetchVoices(apiKeyInput.value, preferredVoice);
+        } else {
+            voiceSelection.innerHTML = '<option value="">Enter an API key to load voices</option>';
+        }
+    }
+
+    async function loadInitialSettings() {
+        const stored = await storageSnapshot();
+        volumeSlider.value = stored.volume ?? 0.7;
+        enableSpeechCheckbox.checked = stored.enabled ?? true;
+        updateVolumeLabel();
+        await loadProvider(stored.ttsProvider || 'elevenlabs', stored);
+    }
+
+    async function showInterface(userEmail, verification = {}) {
+        signInContent.style.display = 'none';
+        signedInContent.style.display = 'block';
+        userEmailSpan.textContent = userEmail;
+        licensedContent.style.display = 'block';
+        unlicensedContent.style.display = 'none';
+        licenseExpiration.textContent = verification.expiresAt
+            ? `Valid through ${new Date(verification.expiresAt * 1000).toLocaleDateString()}`
+            : verification.isBeta ? 'Beta test license' : '';
+        form.style.display = 'block';
+        await loadInitialSettings();
+    }
+
+    function showSignedOutInterface(message = '') {
+        signInContent.style.display = 'flex';
+        signedInContent.style.display = 'none';
+        licensedContent.style.display = 'none';
+        unlicensedContent.style.display = 'none';
+        form.style.display = 'none';
+        if (message) showError(message);
+    }
+
+    function showUnlicensedInterface(userEmail, message = '') {
+        signInContent.style.display = 'none';
+        signedInContent.style.display = 'block';
+        userEmailSpan.textContent = userEmail;
+        licensedContent.style.display = 'none';
+        form.style.display = 'none';
+        unlicensedContent.style.display = 'block';
+        if (message) showError(message);
+    }
+
+    function openPaymentPage() {
+        const width = 500;
+        const height = 650;
+        const left = Math.floor((screen.width - width) / 2);
+        const top = Math.floor((screen.height - height) / 2);
+        window.open(
+            `https://gds-g.github.io/Poe-Voice-Sync/payment/payment.html?extId=${encodeURIComponent(chrome.runtime.id)}`,
+            'Poe Voice Sync Payment',
+            `width=${width},height=${height},left=${left},top=${top}`
+        );
+    }
+
+    async function checkAndInitialize({ attemptSilentSignIn = true } = {}) {
+        loadingIndicator.style.display = 'block';
+        try {
+            let authState = await authHandler.getAuthState();
+            if (!authState.isAuthenticated && attemptSilentSignIn) {
+                const silentResult = await authHandler.silentSignIn();
+                authState = await authHandler.getAuthState();
+            }
+            if (!authState.isAuthenticated) {
+                showSignedOutInterface();
+                return;
+            }
+
+            await licenseHandler.restoreLicense(authState.userEmail);
+            const verification = await licenseHandler.verifyLicenseForEmail(authState.userEmail);
+            if (!verification.success || !verification.isValid) {
+                showUnlicensedInterface(authState.userEmail, verification.error || 'A paid license is required.');
+                return;
+            }
+            await showInterface(authState.userEmail, verification);
+        } catch (error) {
+            console.error('Initialization error:', error);
+            showSignedOutInterface(`Initialization failed: ${error.message}`);
+        } finally {
+            loadingIndicator.style.display = 'none';
+            initializing = false;
+        }
+    }
+
+    providerSelect.addEventListener('change', async () => {
+        if (initializing) return;
+        const nextProvider = PoeVoiceTTS.normalizeProvider(providerSelect.value);
+        await persistProvider(activeProvider, false);
+        const stored = await storageSnapshot();
+        await loadProvider(nextProvider, stored);
+        await persistProvider(activeProvider, true);
+    });
+
+    apiKeyInput.addEventListener('change', async () => {
+        if (apiKeyInput.value.trim()) await fetchVoices(apiKeyInput.value.trim());
+        await persistProvider(activeProvider, true);
+    });
+    voiceSelection.addEventListener('change', () => persistProvider(activeProvider, true));
+    volumeSlider.addEventListener('input', () => {
+        updateVolumeLabel();
+        if (!initializing) persistProvider(activeProvider, true);
+    });
+    enableSpeechCheckbox.addEventListener('change', () => persistProvider(activeProvider, true));
+
+    purchaseLicenseButton.addEventListener('click', openPaymentPage);
+    activateLicenseButton.addEventListener('click', async () => {
+        activateLicenseButton.disabled = true;
+        loadingIndicator.style.display = 'block';
+        try {
+            const authState = await authHandler.getAuthState();
+            if (!authState.isAuthenticated || !authState.userEmail) throw new Error('Sign in before activating a license.');
+            const result = await licenseHandler.installSignedLicense(licenseTokenInput.value, authState.userEmail);
+            if (!result.success) throw new Error(result.error || 'License activation failed.');
+            licenseTokenInput.value = '';
+            await checkAndInitialize();
+            showStatus('License activated.');
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            activateLicenseButton.disabled = false;
+            loadingIndicator.style.display = 'none';
+        }
+    });
+
+    signInButton.addEventListener('click', async () => {
+        signInButton.disabled = true;
+        loadingIndicator.style.display = 'block';
+        try {
+            const result = await authHandler.signIn();
+            if (!result.success) throw new Error(result.error || 'Sign-in failed.');
+            await checkAndInitialize({ attemptSilentSignIn: false });
+        } catch (error) {
+            showSignedOutInterface(error.message);
+        } finally {
+            signInButton.disabled = false;
+            loadingIndicator.style.display = 'none';
+        }
+    });
+
+    testButton.addEventListener('click', async () => {
+        testButton.disabled = true;
+        testStatus.textContent = ' Testing...';
+        try {
+            const blob = await PoeVoiceTTS.synthesize({
+                provider: activeProvider,
+                apiKey: apiKeyInput.value,
+                voiceId: voiceSelection.value,
+                text: 'This is a test of the Poe Voice Sync settings.'
+            });
+            const audioUrl = URL.createObjectURL(blob);
+            const audio = new Audio(audioUrl);
+            audio.volume = Number(volumeSlider.value);
+            const cleanup = () => URL.revokeObjectURL(audioUrl);
+            audio.addEventListener('ended', cleanup, { once: true });
+            audio.addEventListener('error', cleanup, { once: true });
+            await audio.play();
+            testStatus.textContent = ' Test successful!';
+        } catch (error) {
+            console.error('Voice test failed:', error);
+            testStatus.textContent = ` Test failed: ${error.message}`;
+        } finally {
+            testButton.disabled = false;
+            setTimeout(() => { testStatus.textContent = ''; }, 5000);
+        }
+    });
+
+    signOutButton.addEventListener('click', async () => {
+        loadingIndicator.style.display = 'block';
+        await authHandler.signOut();
+        window.close();
+    });
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+        await persistProvider(activeProvider, true);
+        showStatus('Settings saved!');
+    });
+
+    await checkAndInitialize();
 });

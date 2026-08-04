@@ -1,29 +1,21 @@
 {
     "manifest_version": 3,
     "name": "Poe Voice Sync",
-    "version": "1.1",
-    "description": "Sync ElevenLabs voice models with POE AI chatbot responses.",
-    "permissions": [
-        "storage",
-        "identity",
-        "identity.email",
-        "tabs"
-    ],
+    "version": "1.2",
+    "description": "Read Poe chatbot responses with ElevenLabs or Hume voices.",
+    "permissions": ["storage", "identity", "identity.email", "tabs"],
     "host_permissions": [
         "*://*.poe.com/*",
         "https://api.elevenlabs.io/*",
+        "https://api.hume.ai/*",
         "https://gds-g.github.io/*",
         "https://accounts.google.com/*"
     ],
-    "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self'"
-    },
+    "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" },
     "externally_connectable": {
-        "matches": [
-            "https://gds-g.github.io/*"
-        ],
+        "matches": ["https://gds-g.github.io/*"],
         "accepts_tls_channel_id": false,
-        "ids": [ "*" ]
+        "ids": ["*"]
     },
     "oauth2": {
         "client_id": "727891588328-2r740eebr2e7bqa4nd7q8pru4abifp6r.apps.googleusercontent.com",
@@ -32,38 +24,23 @@
             "https://www.googleapis.com/auth/userinfo.profile"
         ]
     },
-    "background": {
-        "service_worker": "background.js",
-        "type": "module"
-    },
+    "background": { "service_worker": "background.js", "type": "module" },
     "content_scripts": [
         {
-            "matches": [ "*://*.poe.com/*" ],
-            "js": [ "content.js" ],
+            "matches": ["*://*.poe.com/*"],
+            "js": ["tts.js", "tts-bridge.js", "content.js"],
             "run_at": "document_end"
         }
     ],
     "web_accessible_resources": [
         {
-            "resources": [ "icons/*", "*.js" ],
-            "matches": [
-                "*://*.poe.com/*",
-                "*://*.github.io/*",
-                "https://gds-g.github.io/*"
-            ]
+            "resources": ["icons/*"],
+            "matches": ["*://*.poe.com/*", "https://gds-g.github.io/*"]
         }
     ],
     "action": {
         "default_popup": "popup.html",
-        "default_icon": {
-            "16": "icons/icon16.png",
-            "48": "icons/icon48.png",
-            "128": "icons/icon128.png"
-        }
+        "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
     },
-    "icons": {
-        "16": "icons/icon16.png",
-        "48": "icons/icon48.png",
-        "128": "icons/icon128.png"
-    }
+    "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
 }
