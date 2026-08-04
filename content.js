@@ -151,7 +151,7 @@
 
     async function refreshSettings() {
         const [stored, localSecrets] = await Promise.all([
-            chrome.storage.sync.get(['ttsProvider', 'voice', 'volume', 'enabled']),
+            chrome.storage.sync.get(['ttsProvider', 'voice', 'volume', 'enabled', 'providerConsent']),
             chrome.storage.local.get(['apiKey'])
         ]);
         state.settings = {
@@ -159,7 +159,8 @@
             apiKey: localSecrets.apiKey || '',
             voiceId: stored.voice || '',
             volume: stored.volume ?? 0.7,
-            enabled: stored.enabled ?? true
+            enabled: stored.providerConsent === true && (stored.enabled ?? true),
+            consented: stored.providerConsent === true
         };
         try {
             const license = await chrome.runtime.sendMessage({ type: 'GET_LICENSE_STATE' });
@@ -185,6 +186,10 @@
         const settings = await refreshSettings();
         if (!state.licensed) {
             showError(button, 'An active Poe Voice Sync license is required.');
+            return;
+        }
+        if (!settings.consented) {
+            showError(button, 'Accept the voice data disclosure in Poe Voice Sync settings first.');
             return;
         }
         if (button === state.currentButton && (state.currentAudio || state.isSynthesizing)) {

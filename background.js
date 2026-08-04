@@ -45,9 +45,12 @@ async function synthesizeSpeech(text) {
     const license = await getLicenseState();
     if (!license.isValid) throw new Error('An active Poe Voice Sync license is required.');
     const [settings, localSecrets] = await Promise.all([
-        chrome.storage.sync.get(['ttsProvider', 'voice']),
+        chrome.storage.sync.get(['ttsProvider', 'voice', 'providerConsent']),
         chrome.storage.local.get(['apiKey'])
     ]);
+    if (settings.providerConsent !== true) {
+        throw new Error('Voice provider consent is required before generating speech.');
+    }
     const blob = await globalThis.PoeVoiceTTS.synthesize({
         provider: settings.ttsProvider,
         apiKey: localSecrets.apiKey,
