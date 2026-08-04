@@ -26,43 +26,21 @@ class AuthHandler {
         }
     }
 
+    async silentSignIn() {
+        // Browser profile identity cannot be revoked by an extension. Requiring
+        // an explicit click here ensures that signing out remains meaningful.
+        return false;
+    }
+
     async signIn() {
         try {
-            const auth = await chrome.identity.getAuthToken({ interactive: true });
-            if (!auth) {
-                throw new Error('Authentication failed');
+            console.log('Reading the signed-in Chromium browser profile');
+            const profile = await chrome.identity.getProfileUserInfo({ accountStatus: 'ANY' });
+            const email = profile?.email?.trim().toLowerCase();
+            if (!email) {
+                throw new Error('Sign in to your Chrome or Edge browser profile, then try again.');
             }
-
-            // Get user info using the auth token
-            const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-                headers: { Authorization: `Bearer ${auth.token}` }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to get user info');
-            }
-
-            const userInfo = await response.json();
-
-            // Store auth state in both storages
-            await Promise.all([
-                chrome.storage.sync.set({
-                    isAuthenticated: true,
-                    userEmail: userInfo.email
-                }),
-                chrome.storage.local.set({
-                    isAuthenticated: true,
-                    userEmail: userInfo.email
-                })
-            ]);
-
-            this.isAuthenticated = true;
-            this.userEmail = userInfo.email;
-
-            return {
-                success: true,
-                email: userInfo.email
-            };
+            return await this.handleAuthSuccess(email);
         } catch (error) {
             console.error('Sign in error:', error);
             return {
@@ -72,18 +50,36 @@ class AuthHandler {
         }
     }
 
+    async handleAuthSuccess(email) {
+        try {
+            // Store auth state in both storages
+            await Promise.all([
+                chrome.storage.sync.set({
+                    isAuthenticated: true,
+                    userEmail: email
+                }),
+                chrome.storage.local.set({
+                    isAuthenticated: true,
+                    userEmail: email
+                })
+            ]);
+
+            this.isAuthenticated = true;
+            this.userEmail = email;
+
+            return {
+                success: true,
+                email
+            };
+        } catch (error) {
+            console.error('Auth success handler error:', error);
+            throw new Error('Failed to store browser profile information: ' + error.message);
+        }
+    }
+
     async signOut() {
         try {
-            // Get current token
-            const token = await chrome.identity.getAuthToken({ interactive: false });
-
-            if (token) {
-                // Revoke token
-                await fetch(`https://accounts.google.com/o/oauth2/revoke?token=${token.token}`);
-                // Remove from cache
-                await chrome.identity.removeCachedAuthToken({ token: token.token });
-            }
-
+            console.log('Starting sign-out process');
             // Only remove auth state, preserve license data
             const keysToRemove = ['userEmail', 'isAuthenticated'];
             await Promise.all([
@@ -116,7 +112,10 @@ class AuthHandler {
     }
 
     async getAuthState() {
-        await this.checkAuthState();
+        console.log('Getting auth state');
+        const isAuthenticated = await this.checkAuthState();
+        console.log('Auth state:', { isAuthenticated, userEmail: this.userEmail });
+
         return {
             isAuthenticated: this.isAuthenticated,
             userEmail: this.userEmail

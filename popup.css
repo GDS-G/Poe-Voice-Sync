@@ -36,6 +36,7 @@ label {
 
 input[type="text"],
 input[type="password"],
+textarea,
 select {
     width: 100%;
     padding: 8px 12px;
@@ -43,6 +44,12 @@ select {
     border-radius: 4px;
     font-size: 14px;
     box-sizing: border-box;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 74px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
 input[type="checkbox"] {
@@ -141,6 +148,55 @@ small {
     font-weight: 500;
     margin: 0;
     line-height: 1.2;
+}
+
+.sign-in-button {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.license-expiration {
+    margin: 3px 0 0;
+    color: #456;
+    font-size: 12px;
+}
+
+.license-activation {
+    margin: 14px 0;
+    padding: 14px;
+    border: 1px solid #d7e2ea;
+    border-radius: 8px;
+    background: #f8fbfd;
+}
+
+.license-activation h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+}
+
+.license-activation p {
+    margin: 0 0 12px;
+    line-height: 1.4;
+}
+
+.beta-license-button {
+    margin-top: 12px;
+    background: #6b7280;
+}
+
+.license-activation label {
+    margin-top: 14px;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 10px;
+    border: 0;
+    border-radius: 4px;
+    background: #ffc439;
+    color: #111;
+    font-weight: 600;
+    cursor: pointer;
 }
 
 #license-section {
