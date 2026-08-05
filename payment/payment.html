@@ -18,15 +18,12 @@
         #result-message.success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
         #result-message.error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
     </style>
-    <script>
-        window.extId = new URLSearchParams(location.search).get('extId');
-    </script>
 </head>
 <body>
     <main>
         <img src="logo.png" class="logo" alt="Poe Voice Sync">
         <h1>Choose your Poe Voice Sync plan</h1>
-        <p>Both plans include a three-day free trial, ElevenLabs and Hume support, personalized voice ordering, automatic new-response playback, and per-message controls.</p>
+        <p>Both plans include a three-day free trial, ElevenLabs and Hume support, personalized voice ordering, automatic new-response playback, and per-message controls. Activation is automatic.</p>
         <div class="plans">
             <section class="plan">
                 <h2>Monthly</h2>
@@ -45,7 +42,7 @@
         </div>
         <p id="result-message" aria-live="polite"></p>
     </main>
-    <script src="payment-config.js?v=1.2.0-live"></script>
-    <script src="app.js?v=1.2.0-live"></script>
+    <script src="payment-config.js?v=1.2.1-live"></script>
+    <script src="app.js?v=1.2.1-live"></script>
 </body>
 </html>

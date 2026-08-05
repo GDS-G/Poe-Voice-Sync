@@ -50,52 +50,49 @@
         <h1>Poe Voice Sync Privacy Policy</h1>
     </div>
 
-    <p>Last Updated: 01/02/2024</p>
+    <p>Effective date: August 5, 2026</p>
 
     <h2>1. Introduction</h2>
-    <p>Poe Voice Sync is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and protect the information you provide when using our Google Chrome Extension.</p>
+    <p>Poe Voice Sync reads Poe chatbot response text aloud using ElevenLabs or Hume. Paid access does not include a voice-provider account; users supply their own provider account and API key.</p>
 
     <h2>2. Information We Collect</h2>
     <ul>
-        <li><strong>Personally Identifiable Information:</strong> We collect your email address when you sign in using Google authentication. This is used to associate your license with your account.</li>
-        <li><strong>Payment Information:</strong> Payment transactions for license activation are securely processed via PayPal. We do not store or process your credit card information.</li>
-        <li><strong>Settings Data:</strong> API keys, voice preferences, and volume settings are stored locally on your device using Chrome's sync storage.</li>
+        <li>Poe chatbot response text selected for speech, including automatically read new responses when enabled.</li>
+        <li>The selected voice provider, voice, volume, autoplay preference, and provider consent.</li>
+        <li>The user's ElevenLabs and/or Hume API key.</li>
+        <li>The license email, signed license token, license status, and limited PayPal subscription-reference metadata.</li>
     </ul>
 
     <h2>3. How We Use Your Information</h2>
-    <p>Your information is used solely to provide and improve the functionality of the extension. This includes:</p>
-    <ul>
-        <li>Authenticating users and verifying licenses.</li>
-        <li>Configuring text-to-speech settings based on user preferences.</li>
-        <li>Facilitating secure payment transactions for license activation.</li>
-    </ul>
+    <p>When speech is requested, Poe Voice Sync sends only the text being read and required voice settings directly from the browser to the selected provider. The provider receives the user's API key to authenticate the request. These transfers are governed by the selected provider's terms and privacy policy.</p>
 
     <h2>4. Data Sharing</h2>
-    <p>We do not sell, rent, or share your data with third parties, except as necessary to provide core functionality (e.g., using ElevenLabs API for text-to-speech services and PayPal for payment processing).</p>
+    <p>Poe Voice Sync does not send Poe message text or provider API keys to its developer, advertising networks, data brokers, or analytics services. It does not sell personal information or use it for advertising or unrelated profiling.</p>
+    <p>PayPal handles subscription checkout. A scheduled GitHub Actions workflow checks active subscriptions with PayPal and publishes short-lived signed entitlements through GitHub Pages. The public registry contains one-way license-email hashes and signed tokens—not raw emails, PayPal account details, subscription IDs, or API credentials.</p>
 
     <h2>5. Data Storage and Security</h2>
-    <p>We use Chrome's secure sync storage to store user data such as API keys and settings. We take reasonable measures to protect your information from unauthorized access, alteration, disclosure, or destruction.</p>
+    <p>Provider API keys are stored in device-local extension storage and are not placed in browser sync storage. License identity and non-secret preferences may be stored in extension storage so settings and license state can be restored. Data remains until the user clears extension data or removes the extension, subject to the browser's storage behavior.</p>
 
     <h2>6. Your Choices</h2>
     <p>You have the right to:</p>
     <ul>
-        <li>View and update your settings via the extension popup.</li>
-        <li>Revoke Google authentication at any time through your Google account settings.</li>
-        <li>Contact us to delete any associated data if you stop using the extension.</li>
+        <li>Disable automatic reading or speech generation.</li>
+        <li>Choose either provider and replace or remove the provider API key.</li>
+        <li>Sign out, clear extension data, or uninstall the extension.</li>
     </ul>
 
     <h2>7. Third-Party Services</h2>
     <p>This extension interacts with the following third-party services:</p>
     <ul>
-        <li><strong>ElevenLabs:</strong> Used to convert text to speech. API calls include the text to be converted and user-specified voice settings.</li>
+        <li><strong>ElevenLabs or Hume:</strong> Converts selected text to speech using the user's provider account.</li>
         <li><strong>PayPal:</strong> Used for secure payment processing.</li>
-        <li><strong>Google OAuth:</strong> Used to authenticate users and retrieve their email addresses for license association.</li>
+        <li><strong>GitHub Pages and GitHub Actions:</strong> Publishes and refreshes cryptographically signed subscription entitlements.</li>
     </ul>
 
     <h2>8. Changes to This Privacy Policy</h2>
     <p>We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated revision date.</p>
 
     <h2>9. Contact Us</h2>
-    <p>If you have any questions or concerns about this Privacy Policy or your data, please contact us at <a href="mailto:support@poevoicesync.com">support@poevoicesync.com</a>.</p>
+    <p>Questions can be submitted through the <a href="https://github.com/GDS-G/Poe-Voice-Sync/issues">Poe Voice Sync GitHub issue tracker</a>.</p>
 </body>
 </html>
