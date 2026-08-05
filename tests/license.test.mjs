@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 import { LicenseHandler } from '../license.js';
+import { hashLicensedEmail } from '../license-token.js';
 
 function base64Url(value) {
     return Buffer.from(value).toString('base64url');
@@ -39,6 +40,28 @@ async function signedReviewToken(privateKey, email, expiresAt) {
         Buffer.from(signingInput)
     );
     return `PVR1.${encodedExpiry}.${base64Url(signature)}`;
+}
+
+async function signedAutomaticToken(privateKey, email, overrides = {}) {
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+        version: 2,
+        product: 'poe-voice-sync',
+        emailHash: await hashLicensedEmail(email),
+        plan: 'monthly',
+        issuedAt: now - 5,
+        expiresAt: now + 86400,
+        subscriptionHash: 'b'.repeat(64),
+        ...overrides
+    };
+    const encodedPayload = base64Url(JSON.stringify(payload));
+    const signingInput = `PVA1.${encodedPayload}`;
+    const signature = await webcrypto.subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        privateKey,
+        Buffer.from(signingInput)
+    );
+    return `${signingInput}.${base64Url(signature)}`;
 }
 
 function storageArea(seed = {}) {
@@ -191,4 +214,25 @@ test('compact store-review licenses fit credential limits and remain signed, ema
 
     const expired = await signedReviewToken(keyPair.privateKey, 'chrome-review@example.com', 1);
     assert.equal((await license.installSignedLicense(expired, 'chrome-review@example.com')).success, false);
+});
+
+test('automatic registry licenses are signed, privacy-safe, email-bound, and short-lived', async () => {
+    const keyPair = await webcrypto.subtle.generateKey(
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        true,
+        ['sign', 'verify']
+    );
+    const publicKey = await webcrypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const sync = storageArea();
+    const local = storageArea();
+    globalThis.chrome = {
+        storage: { sync, local },
+        runtime: { async sendMessage() { return { success: true }; } }
+    };
+    const license = new LicenseHandler(undefined, publicKey);
+    const token = await signedAutomaticToken(keyPair.privateKey, 'subscriber@example.com');
+    assert.doesNotMatch(token, /subscriber@example\.com/);
+    assert.equal((await license.installSignedLicense(token, 'subscriber@example.com')).success, true);
+    assert.equal((await license.verifyLicenseForEmail('subscriber@example.com')).isValid, true);
+    assert.equal((await license.verifyLicenseForEmail('different@example.com')).isValid, false);
 });

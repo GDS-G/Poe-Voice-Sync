@@ -1,5 +1,6 @@
 const TOKEN_PREFIX = 'PVS1';
 const REVIEW_TOKEN_PREFIX = 'PVR1';
+const AUTOMATIC_TOKEN_PREFIX = 'PVA1';
 const PRODUCT_ID = 'poe-voice-sync';
 
 function base64UrlToBytes(value) {
@@ -15,6 +16,12 @@ function decodePayload(encodedPayload) {
 
 export function normalizeLicensedEmail(email) {
     return String(email || '').trim().toLowerCase();
+}
+
+export async function hashLicensedEmail(email) {
+    const bytes = new TextEncoder().encode(normalizeLicensedEmail(email));
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export async function verifyLicenseToken(token, expectedEmail, publicKeyJwk, nowMs = Date.now()) {
@@ -61,7 +68,7 @@ export async function verifyLicenseToken(token, expectedEmail, publicKeyJwk, now
             };
         }
 
-        if (prefix !== TOKEN_PREFIX || !encodedPayload || !encodedSignature || extra) {
+        if (![TOKEN_PREFIX, AUTOMATIC_TOKEN_PREFIX].includes(prefix) || !encodedPayload || !encodedSignature || extra) {
             throw new Error('The license token format is invalid.');
         }
         const signingInput = new TextEncoder().encode(`${prefix}.${encodedPayload}`);
@@ -74,10 +81,15 @@ export async function verifyLicenseToken(token, expectedEmail, publicKeyJwk, now
         if (!isAuthentic) throw new Error('The license signature is invalid.');
 
         const payload = decodePayload(encodedPayload);
-        if (payload.version !== 1 || payload.product !== PRODUCT_ID) {
+        const expectedVersion = prefix === AUTOMATIC_TOKEN_PREFIX ? 2 : 1;
+        if (payload.version !== expectedVersion || payload.product !== PRODUCT_ID) {
             throw new Error('The license is not valid for Poe Voice Sync.');
         }
-        if (normalizeLicensedEmail(payload.email) !== normalizeLicensedEmail(expectedEmail)) {
+        if (prefix === AUTOMATIC_TOKEN_PREFIX) {
+            if (payload.emailHash !== await hashLicensedEmail(expectedEmail)) {
+                throw new Error('The subscription belongs to a different signed-in email address.');
+            }
+        } else if (normalizeLicensedEmail(payload.email) !== normalizeLicensedEmail(expectedEmail)) {
             throw new Error('The license belongs to a different signed-in email address.');
         }
         const issuedAt = Number(payload.issuedAt);
@@ -88,7 +100,10 @@ export async function verifyLicenseToken(token, expectedEmail, publicKeyJwk, now
         }
         if (issuedAt > nowSeconds + 300) throw new Error('The license issue date is invalid.');
         if (expiresAt <= nowSeconds) throw new Error('The license has expired.');
-        if (!payload.transactionHash || !payload.plan || !payload.nonce) {
+        const hasBinding = prefix === AUTOMATIC_TOKEN_PREFIX
+            ? payload.subscriptionHash
+            : payload.transactionHash && payload.nonce;
+        if (!hasBinding || !payload.plan) {
             throw new Error('The license payload is incomplete.');
         }
         return { success: true, payload };
@@ -100,3 +115,4 @@ export async function verifyLicenseToken(token, expectedEmail, publicKeyJwk, now
 export const LICENSE_TOKEN_PRODUCT = PRODUCT_ID;
 export const LICENSE_TOKEN_PREFIX = TOKEN_PREFIX;
 export const REVIEW_LICENSE_TOKEN_PREFIX = REVIEW_TOKEN_PREFIX;
+export const AUTOMATIC_LICENSE_TOKEN_PREFIX = AUTOMATIC_TOKEN_PREFIX;

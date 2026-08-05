@@ -260,13 +260,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (message) showError(message);
     }
 
-    function openPaymentPage() {
+    async function openPaymentPage() {
         const width = 500;
         const height = 650;
         const left = Math.floor((screen.width - width) / 2);
         const top = Math.floor((screen.height - height) / 2);
+        const checkout = await chrome.runtime.sendMessage({ type: 'BEGIN_PAYPAL_CHECKOUT' });
+        if (!checkout?.success || !checkout.url) {
+            throw new Error(checkout?.error || 'Could not start PayPal checkout.');
+        }
         window.open(
-            `https://gds-g.github.io/Poe-Voice-Sync/payment/payment.html?extId=${encodeURIComponent(chrome.runtime.id)}`,
+            checkout.url,
             'Poe Voice Sync Payment',
             `width=${width},height=${height},left=${left},top=${top}`
         );
@@ -285,6 +289,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
+            await licenseHandler.refreshAutomaticLicense(authState.userEmail);
             await licenseHandler.restoreLicense(authState.userEmail);
             const verification = await licenseHandler.verifyLicenseForEmail(authState.userEmail);
             if (!verification.success || !verification.isValid) {
@@ -331,7 +336,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         await persistProvider(activeProvider, true);
     });
 
-    purchaseLicenseButton.addEventListener('click', openPaymentPage);
+    purchaseLicenseButton.addEventListener('click', async () => {
+        purchaseLicenseButton.disabled = true;
+        try {
+            await openPaymentPage();
+            showStatus('Complete PayPal checkout in the new window. Activation is automatic.');
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            purchaseLicenseButton.disabled = false;
+        }
+    });
     activateLicenseButton.addEventListener('click', async () => {
         activateLicenseButton.disabled = true;
         loadingIndicator.style.display = 'block';
