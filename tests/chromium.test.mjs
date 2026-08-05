@@ -13,6 +13,7 @@ test('Chromium build uses profile identity with a manual fallback for compatible
     const manifest = JSON.parse(manifestSource);
 
     assert.match(authSource, /identity\.getProfileUserInfo/);
+    assert.match(authSource, /emailInput\.trim\(\)\.toLowerCase\(\) \|\| profileEmail/);
     assert.doesNotMatch(authSource, /identity\.getAuthToken|removeCachedAuthToken/);
     assert.match(popupSource, /id="sign-in-email"/);
     assert.match(popupSource, /Other Chromium browsers use this license email/);

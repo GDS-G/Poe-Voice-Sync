@@ -1,4 +1,5 @@
 const TOKEN_PREFIX = 'PVS1';
+const REVIEW_TOKEN_PREFIX = 'PVR1';
 const PRODUCT_ID = 'poe-voice-sync';
 
 function base64UrlToBytes(value) {
@@ -18,10 +19,8 @@ export function normalizeLicensedEmail(email) {
 
 export async function verifyLicenseToken(token, expectedEmail, publicKeyJwk, nowMs = Date.now()) {
     try {
-        const [prefix, encodedPayload, encodedSignature, extra] = String(token || '').trim().split('.');
-        if (prefix !== TOKEN_PREFIX || !encodedPayload || !encodedSignature || extra) {
-            throw new Error('The license token format is invalid.');
-        }
+        const normalizedToken = String(token || '').trim();
+        const [prefix, encodedPayload, encodedSignature, extra] = normalizedToken.split('.');
         const key = await crypto.subtle.importKey(
             'jwk',
             publicKeyJwk,
@@ -29,6 +28,42 @@ export async function verifyLicenseToken(token, expectedEmail, publicKeyJwk, now
             false,
             ['verify']
         );
+
+        if (prefix === REVIEW_TOKEN_PREFIX) {
+            if (!encodedPayload || !encodedSignature || extra) {
+                throw new Error('The review license token format is invalid.');
+            }
+            const normalizedEmail = normalizeLicensedEmail(expectedEmail);
+            const expiresAt = Number.parseInt(encodedPayload, 36);
+            const nowSeconds = Math.floor(nowMs / 1000);
+            if (!normalizedEmail || !Number.isSafeInteger(expiresAt) || expiresAt <= nowSeconds) {
+                throw new Error('The review license has expired or is invalid.');
+            }
+            const signingInput = new TextEncoder().encode(`${prefix}.${normalizedEmail}.${encodedPayload}`);
+            const isAuthentic = await crypto.subtle.verify(
+                { name: 'ECDSA', hash: 'SHA-256' },
+                key,
+                base64UrlToBytes(encodedSignature),
+                signingInput
+            );
+            if (!isAuthentic) throw new Error('The review license signature is invalid.');
+            return {
+                success: true,
+                payload: {
+                    version: 1,
+                    product: PRODUCT_ID,
+                    email: normalizedEmail,
+                    plan: 'store-review',
+                    issuedAt: nowSeconds,
+                    expiresAt,
+                    transactionHash: 'store-review'
+                }
+            };
+        }
+
+        if (prefix !== TOKEN_PREFIX || !encodedPayload || !encodedSignature || extra) {
+            throw new Error('The license token format is invalid.');
+        }
         const signingInput = new TextEncoder().encode(`${prefix}.${encodedPayload}`);
         const isAuthentic = await crypto.subtle.verify(
             { name: 'ECDSA', hash: 'SHA-256' },
@@ -64,3 +99,4 @@ export async function verifyLicenseToken(token, expectedEmail, publicKeyJwk, now
 
 export const LICENSE_TOKEN_PRODUCT = PRODUCT_ID;
 export const LICENSE_TOKEN_PREFIX = TOKEN_PREFIX;
+export const REVIEW_LICENSE_TOKEN_PREFIX = REVIEW_TOKEN_PREFIX;

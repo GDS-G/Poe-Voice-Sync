@@ -30,6 +30,17 @@ async function signedToken(privateKey, overrides = {}) {
     return `${signingInput}.${base64Url(signature)}`;
 }
 
+async function signedReviewToken(privateKey, email, expiresAt) {
+    const encodedExpiry = expiresAt.toString(36);
+    const signingInput = `PVR1.${email}.${encodedExpiry}`;
+    const signature = await webcrypto.subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        privateKey,
+        Buffer.from(signingInput)
+    );
+    return `PVR1.${encodedExpiry}.${base64Url(signature)}`;
+}
+
 function storageArea(seed = {}) {
     const data = { ...seed };
     return {
@@ -155,4 +166,29 @@ test('offline-signed production licenses are email-bound, expiring, and tamper-e
 
     const expired = await signedToken(keyPair.privateKey, { issuedAt: 1, expiresAt: 2 });
     assert.equal((await license.installSignedLicense(expired, 'owner@example.com')).success, false);
+});
+
+test('compact store-review licenses fit credential limits and remain signed, email-bound, and expiring', async () => {
+    const keyPair = await webcrypto.subtle.generateKey(
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        true,
+        ['sign', 'verify']
+    );
+    const publicKey = await webcrypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const sync = storageArea();
+    const local = storageArea();
+    globalThis.chrome = {
+        storage: { sync, local },
+        runtime: { async sendMessage() { return { success: true }; } }
+    };
+    const license = new LicenseHandler(publicKey);
+    const expiresAt = Math.floor(Date.now() / 1000) + 86400;
+    const token = await signedReviewToken(keyPair.privateKey, 'chrome-review@example.com', expiresAt);
+    assert.ok(token.length <= 100);
+    assert.equal((await license.installSignedLicense(token, 'chrome-review@example.com')).success, true);
+    assert.equal((await license.verifyLicenseForEmail('chrome-review@example.com')).isValid, true);
+    assert.equal((await license.verifyLicenseForEmail('different@example.com')).isValid, false);
+
+    const expired = await signedReviewToken(keyPair.privateKey, 'chrome-review@example.com', 1);
+    assert.equal((await license.installSignedLicense(expired, 'chrome-review@example.com')).success, false);
 });

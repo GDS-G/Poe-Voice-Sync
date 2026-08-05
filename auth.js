@@ -45,7 +45,10 @@ class AuthHandler {
                 }
             }
 
-            const email = profileEmail || emailInput.trim().toLowerCase();
+            // An explicitly entered license email must win. This keeps paid
+            // licenses portable across Chromium profiles and lets store
+            // reviewers use the email supplied with their review credential.
+            const email = emailInput.trim().toLowerCase() || profileEmail;
             if (!email) {
                 throw new Error('Enter the email address used to purchase your Poe Voice Sync license.');
             }
