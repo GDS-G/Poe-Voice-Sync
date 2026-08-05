@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { deflateRawSync } from 'node:zlib';
 
@@ -46,10 +46,10 @@ function crc32(buffer) {
 }
 
 function dosDateTime(date) {
-    const year = Math.max(1980, date.getFullYear());
+    const year = Math.max(1980, date.getUTCFullYear());
     return {
-        date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate(),
-        time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2)
+        date: ((year - 1980) << 9) | ((date.getUTCMonth() + 1) << 5) | date.getUTCDate(),
+        time: (date.getUTCHours() << 11) | (date.getUTCMinutes() << 5) | Math.floor(date.getUTCSeconds() / 2)
     };
 }
 
@@ -71,14 +71,13 @@ async function createZip(sourceDirectory, archivePath) {
     const localParts = [];
     const centralParts = [];
     let localOffset = 0;
+    const modified = dosDateTime(new Date(Date.UTC(2000, 0, 1)));
 
     for (const file of await collectFiles(sourceDirectory)) {
         const contents = await readFile(file.absolutePath);
         const compressed = deflateRawSync(contents, { level: 9 });
         const fileName = Buffer.from(file.archivePath, 'utf8');
         const checksum = crc32(contents);
-        const modified = dosDateTime((await stat(file.absolutePath)).mtime);
-
         const localHeader = Buffer.alloc(30);
         localHeader.writeUInt32LE(0x04034b50, 0);
         localHeader.writeUInt16LE(20, 4);
