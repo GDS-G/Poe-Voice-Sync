@@ -75,4 +75,4 @@ Do not distribute the repository root, which intentionally keeps beta testing co
 npm run package:production
 ```
 
-The generated ignored `dist/chromium/` and `dist/firefox/` directories share the same application source and differ only where browser manifests or background audio capabilities require it. Both omit the debug module and disable beta license generation. Chrome, Edge, Brave, and Vivaldi use the Chromium package; Firefox uses the Firefox package. Release work should remain on `main` with short-lived feature branches rather than long-lived browser branches.
+The generated ignored `dist/chromium/` and `dist/firefox/` directories share the same application source and differ only where browser manifests or background audio capabilities require it. Ready-to-upload ZIP files are created in `dist/releases/` with portable archive paths accepted by every supported store. Both omit the debug module and disable beta license generation. Chrome, Edge, Brave, and Vivaldi use the Chromium package; Firefox uses the Firefox package. Release work should remain on `main` with short-lived feature branches rather than long-lived browser branches.
