@@ -13,6 +13,7 @@ test('one source tree defines compatible Chromium and Firefox packages', () => {
     assert.ok(!firefox.permissions.includes('offscreen'));
     assert.deepEqual(chromium.content_scripts, firefox.content_scripts);
     assert.equal(firefox.browser_specific_settings.gecko.id, 'poe-voice-sync@gds-g.github.io');
+    assert.equal(firefox.browser_specific_settings.gecko_android, undefined);
 });
 
 test('Firefox store archive uses portable ZIP entry paths', () => {
