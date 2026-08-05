@@ -1,0 +1,51 @@
+name: Sync PayPal licenses
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: paypal-license-registry
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out application source
+        uses: actions/checkout@v4
+
+      - name: Check out GitHub Pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: website
+          path: website
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build signed subscription registry
+        env:
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+          PVS_AUTOMATIC_LICENSE_PRIVATE_KEY: ${{ secrets.PVS_AUTOMATIC_LICENSE_PRIVATE_KEY }}
+        run: node scripts/sync-paypal-licenses.mjs --output website/payment/licenses.json
+
+      - name: Publish changed registry
+        working-directory: website
+        run: |
+          git config user.name "Poe Voice Sync License Bot"
+          git config user.email "admin@ascensionrealmstudios.com"
+          git add payment/licenses.json
+          if git diff --cached --quiet; then
+            echo "Registry is already current."
+          else
+            git commit -m "chore: refresh automatic license registry"
+            git push origin website
+          fi

@@ -1,13 +1,16 @@
 import productionLicensePublicKey from './license-public-key.js';
+import automaticLicensePublicKey from './automatic-license-public-key.js';
 import { ALLOW_BETA_LICENSES } from './license-config.js';
-import { normalizeLicensedEmail, verifyLicenseToken } from './license-token.js';
+import { AUTOMATIC_LICENSE_TOKEN_PREFIX, hashLicensedEmail, normalizeLicensedEmail, verifyLicenseToken } from './license-token.js';
+import { SUBSCRIPTION_CONFIG } from './subscription-config.js';
 
 export class LicenseHandler {
-    constructor(publicKey = productionLicensePublicKey) {
+    constructor(publicKey = productionLicensePublicKey, automaticPublicKey = automaticLicensePublicKey) {
         this.betaSalt = 'beta_poe_voice_sync_2024';
         this.betaPrefix = 'BETA-';
         this.isDebugMode = false;
         this.productionLicensePublicKey = publicKey;
+        this.automaticLicensePublicKey = automaticPublicKey;
     }
 
     setDebugMode(enabled) {
@@ -70,7 +73,8 @@ export class LicenseHandler {
         const keys = [
             'licenseKey', 'signedLicense', 'licensedEmail', 'purchaseDate', 'expiresAt',
             'isActivated', 'licenseMode', 'licensePlan', 'transactionHash', 'orderId',
-            'transactionId', 'paymentVerification', 'paymentReceipt'
+            'transactionId', 'paymentVerification', 'paymentReceipt',
+            'lastRegistryCheck'
         ];
         const [syncData, localData] = await Promise.all([
             chrome.storage.sync.get(keys),
@@ -82,7 +86,9 @@ export class LicenseHandler {
 
     async verifyStoredCredentials(userEmail, data) {
         if (data.signedLicense) {
-            const result = await verifyLicenseToken(data.signedLicense, userEmail, this.productionLicensePublicKey);
+            const isAutomatic = data.signedLicense.startsWith(`${AUTOMATIC_LICENSE_TOKEN_PREFIX}.`);
+            const publicKey = isAutomatic ? this.automaticLicensePublicKey : this.productionLicensePublicKey;
+            const result = await verifyLicenseToken(data.signedLicense, userEmail, publicKey);
             if (result.success) return { isValid: true, isBeta: false, payload: result.payload };
 
             // A beta tester may have a stale or incomplete production token from
@@ -158,7 +164,9 @@ export class LicenseHandler {
 
     async installSignedLicense(token, userEmail) {
         const normalizedEmail = normalizeLicensedEmail(userEmail);
-        const verification = await verifyLicenseToken(token, normalizedEmail, this.productionLicensePublicKey);
+        const isAutomatic = String(token).trim().startsWith(`${AUTOMATIC_LICENSE_TOKEN_PREFIX}.`);
+        const publicKey = isAutomatic ? this.automaticLicensePublicKey : this.productionLicensePublicKey;
+        const verification = await verifyLicenseToken(token, normalizedEmail, publicKey);
         if (!verification.success) return verification;
         const { payload } = verification;
         const licenseData = {
@@ -168,8 +176,8 @@ export class LicenseHandler {
             purchaseDate: payload.issuedAt * 1000,
             expiresAt: payload.expiresAt,
             licensePlan: payload.plan,
-            transactionHash: payload.transactionHash,
-            paymentVerification: 'offline-signed',
+            transactionHash: payload.transactionHash || payload.subscriptionHash,
+            paymentVerification: isAutomatic ? 'automatic-paypal-registry' : 'offline-signed',
             licenseMode: 'production',
             isActivated: true
         };
@@ -179,6 +187,36 @@ export class LicenseHandler {
         ]);
         try { await chrome.runtime.sendMessage({ type: 'LICENSE_UPDATED' }); } catch (_) { }
         return { success: true, isBeta: false, expiresAt: payload.expiresAt, plan: payload.plan };
+    }
+
+    async refreshAutomaticLicense(userEmail, { force = false } = {}) {
+        const normalizedEmail = normalizeLicensedEmail(userEmail);
+        if (!normalizedEmail) return { success: false, error: 'A license email is required.' };
+        const { lastRegistryCheck = 0 } = await chrome.storage.local.get(['lastRegistryCheck']);
+        if (!force && Date.now() - lastRegistryCheck < SUBSCRIPTION_CONFIG.registryRefreshMs) {
+            return { success: true, skipped: true };
+        }
+        await chrome.storage.local.set({ lastRegistryCheck: Date.now() });
+        try {
+            const response = await fetch(`${SUBSCRIPTION_CONFIG.registryUrl}?v=${Date.now()}`, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`License service returned HTTP ${response.status}.`);
+            const registry = await response.json();
+            if (registry.version !== 1 || !registry.licenses || typeof registry.licenses !== 'object') {
+                throw new Error('The automatic license registry is invalid.');
+            }
+            const emailHash = await hashLicensedEmail(normalizedEmail);
+            const token = registry.licenses[emailHash];
+            if (token) return this.installSignedLicense(token, normalizedEmail);
+
+            const stored = await this.readStoredLicense();
+            if (stored.signedLicense?.startsWith(`${AUTOMATIC_LICENSE_TOKEN_PREFIX}.`)) {
+                const keys = ['signedLicense', 'expiresAt', 'transactionHash'];
+                await Promise.all([chrome.storage.sync.remove(keys), chrome.storage.local.remove(keys)]);
+            }
+            return { success: true, found: false };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
     }
 
     async toggleLicenseStatus(activated) {

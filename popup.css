@@ -80,6 +80,24 @@ textarea {
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
+.support-license {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid #d7e2ea;
+}
+
+.support-license summary {
+    cursor: pointer;
+    color: #586776;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.support-license textarea,
+.support-license .btn-save {
+    margin-bottom: 8px;
+}
+
 input[type="checkbox"] {
     margin-right: 8px;
 }

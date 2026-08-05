@@ -18,7 +18,7 @@
                 <p>Verify the email tied to your Poe Voice Sync license.</p>
                 <label class="visually-hidden" for="sign-in-email">License email</label>
                 <input type="email" id="sign-in-email" autocomplete="email" placeholder="License email (if browser profile is unavailable)">
-                <small>Chrome and Edge use the signed-in browser profile when available. Other Chromium browsers use this license email.</small>
+                <small>Chrome and Edge use the signed-in browser profile when available. Firefox and other Chromium browsers use this license email.</small>
                 <button type="button" id="sign-in-button" class="btn-save sign-in-button">Continue</button>
             </div>
             <div id="signed-in-content" style="display: none;">
@@ -35,12 +35,16 @@
 
         <section id="unlicensed-content" class="license-activation" style="display: none;">
             <h2>Activate Poe Voice Sync</h2>
-            <p>Purchase access, then enter the signed license supplied after payment verification.</p>
+            <p>Choose a monthly or yearly PayPal subscription. Access activates automatically after checkout.</p>
             <button type="button" id="purchase-license" class="btn-primary">Purchase with PayPal</button>
-            <label for="license-token">Signed license token:</label>
-            <textarea id="license-token" rows="4" spellcheck="false" autocomplete="off" placeholder="PVS1..."></textarea>
-            <button type="button" id="activate-license" class="btn-save">Activate License</button>
-            <small>Production licenses are signed, tied to the verified license email, and expire with the purchased access period.</small>
+            <small>Keep this popup signed in with the same email used for the subscription. Renewal and cancellation checks are automatic.</small>
+            <details class="support-license">
+                <summary>Reviewer or support license</summary>
+                <label for="license-token">Signed license token:</label>
+                <textarea id="license-token" rows="4" spellcheck="false" autocomplete="off" placeholder="PVR1... or PVS1..."></textarea>
+                <button type="button" id="activate-license" class="btn-save">Activate Support License</button>
+                <small>Only use this field when a store reviewer or Poe Voice Sync support supplied a signed token.</small>
+            </details>
             <button type="button" id="activate-beta-license" class="btn-save beta-license-button" style="display: none;">Activate Local Beta License</button>
         </section>
 

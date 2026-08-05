@@ -16,7 +16,7 @@ test('Chromium build uses profile identity with a manual fallback for compatible
     assert.match(authSource, /emailInput\.trim\(\)\.toLowerCase\(\) \|\| profileEmail/);
     assert.doesNotMatch(authSource, /identity\.getAuthToken|removeCachedAuthToken/);
     assert.match(popupSource, /id="sign-in-email"/);
-    assert.match(popupSource, /Other Chromium browsers use this license email/);
+    assert.match(popupSource, /Firefox and other Chromium browsers use this license email/);
     assert.match(popupSource, /Activate Local Beta License/);
     assert.equal(manifest.oauth2, undefined);
     assert.equal(manifest.permissions.includes('identity'), true);

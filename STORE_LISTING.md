@@ -23,12 +23,12 @@ Convert Poe chatbot response text into user-requested speech through the user's 
 ## Permission justifications
 
 - `storage`: save license state, user preferences, selected voices, and device-local provider API keys.
-- `identity` and `identity.email` (Chromium): bind a paid license to the signed-in Chrome or Edge profile when the browser supports profile identity. Other compatible Chromium browsers use a manually entered license email.
+- `identity` and `identity.email` (Chromium): bind a paid license to the signed-in Chrome or Edge profile when the browser supports profile identity. Firefox and other compatible Chromium browsers use an explicitly entered license email.
 - `tabs`: notify open Poe tabs when speech or license settings change.
 - `offscreen` (Chromium): play autoplay speech from a Manifest V3 service worker through an audio-only offscreen document.
 - `poe.com` host access: detect Poe chatbot responses and add the user-facing speech button.
 - ElevenLabs and Hume host access: list the user's available voices and generate requested speech.
-- `gds-g.github.io` host access: open the hosted PayPal subscription page and receive a limited subscription reference after approval.
+- `gds-g.github.io` host access: open the hosted PayPal subscription page, receive a limited subscription reference after approval, and retrieve the signed automatic-license registry.
 
 ## Data disclosure
 
@@ -36,4 +36,4 @@ Before speech is enabled, the extension explains that text being read is sent di
 
 ## Reviewer notes
 
-Production builds reject beta licenses. Review requires a temporary, email-bound production license token plus test API credentials for at least one supported provider. The extension contains no remotely hosted executable code.
+Production builds reject beta licenses. Customer subscriptions activate automatically. Store reviewers can use the supplied temporary, email-bound reviewer token plus test API credentials without completing a real purchase. The extension contains no remotely hosted executable code; downloaded registry data is accepted only after local ECDSA signature verification.

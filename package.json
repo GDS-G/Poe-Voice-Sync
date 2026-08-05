@@ -1,14 +1,15 @@
 {
   "name": "poe-voice-sync",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "node scripts/validate-extension.mjs",
-    "package:beta": "npm run build && node scripts/package-production.mjs --beta",
-    "package:production": "npm run build && node scripts/package-production.mjs",
+    "package:beta": "npm run build && node scripts/package-production.mjs --beta --browser=all",
+    "package:production": "npm run build && node scripts/package-production.mjs --browser=all",
     "test": "node --test tests/*.test.mjs",
     "license:setup": "node scripts/generate-license-keys.mjs",
+    "license:setup-automatic": "node scripts/generate-automatic-license-keys.mjs",
     "license:issue": "node scripts/issue-license.mjs",
     "license:issue-review": "node scripts/issue-review-license.mjs"
   }

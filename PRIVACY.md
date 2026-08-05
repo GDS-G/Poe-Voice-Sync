@@ -9,7 +9,7 @@ Poe Voice Sync reads Poe chatbot response text aloud using a voice provider sele
 - Poe chatbot response text chosen for speech, including automatically read new responses when that option is enabled.
 - The user's selected voice provider, voice, volume, and autoplay preference.
 - The user's ElevenLabs and/or Hume API key.
-- The license email, signed license token, license status, and limited PayPal subscription or transaction reference metadata used to verify access.
+- The license email, signed license token, license status, and limited PayPal subscription reference metadata used to verify access.
 
 ## How data is used and shared
 
@@ -17,7 +17,7 @@ When the user requests speech, Poe Voice Sync sends only the text being read and
 
 Poe Voice Sync does not send Poe message text or provider API keys to the Poe Voice Sync developer, advertising networks, data brokers, or analytics services. It does not sell personal information or use it for advertising, credit decisions, or unrelated profiling.
 
-PayPal handles subscription checkout on the hosted payment page. Poe Voice Sync stores only limited transaction or subscription reference metadata needed for license verification; it does not receive or store payment-card details.
+PayPal handles subscription checkout on the hosted payment page. Poe Voice Sync stores only limited subscription reference metadata needed for license verification; it does not receive or store payment-card details. A scheduled GitHub Actions workflow checks active subscriptions with PayPal and publishes short-lived signed entitlements through GitHub Pages. The public registry contains one-way license-email hashes and signed tokens, not raw emails, PayPal account details, subscription IDs, or API credentials.
 
 ## Storage and retention
 
@@ -29,7 +29,7 @@ Speech generation is disabled until the user accepts the in-product voice data d
 
 ## Security
 
-Poe Voice Sync uses HTTPS for provider and payment communications, requests only the browser permissions required for its features, does not execute remotely hosted code, and uses signed, expiring production license tokens. No client-only extension can guarantee absolute security; users should protect and rotate provider API keys according to provider guidance.
+Poe Voice Sync uses HTTPS for provider, payment, and signed-license-registry communications; requests only the browser permissions required for its features; does not execute remotely hosted code; and verifies expiring production licenses locally with embedded public keys. Users should protect and rotate provider API keys according to provider guidance.
 
 ## Changes and contact
 
