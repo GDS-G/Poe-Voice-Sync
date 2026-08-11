@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Poe Voice Sync",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "description": "Read Poe chatbot responses with ElevenLabs or Hume voices.",
     "permissions": ["storage", "identity", "identity.email", "tabs", "offscreen"],
     "host_permissions": [
