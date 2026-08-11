@@ -3,6 +3,7 @@
 This directory contains editable vector masters for the version 1.2.2 branding refresh.
 
 - `extension-icon.svg`: square robot/chat-and-voice mark derived from the popup branding. Export to 16, 32, 48, and 128 px PNG files for extension manifests and store icons.
+- `promo-small-440x280.svg`: required Chrome small promotional tile with a text-free brand composition.
 - `promo-primary-1280x800.svg`: primary product image showing the real extension concept—Poe responses, the per-message voice button, provider selection, auto-read, and Discord support.
 - `promo-marquee-1400x560.svg`: Chrome Web Store marquee promotional tile.
 
