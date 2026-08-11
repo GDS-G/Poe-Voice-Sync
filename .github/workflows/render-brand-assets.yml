@@ -7,12 +7,18 @@ on:
     paths:
       - store-assets/**
       - .github/workflows/render-brand-assets.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - store-assets/**
+      - .github/workflows/render-brand-assets.yml
 
 permissions:
   contents: write
 
 concurrency:
-  group: render-brand-assets
+  group: render-brand-assets-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -22,6 +28,8 @@ jobs:
     steps:
       - name: Check out branding branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Render extension icons and store artwork
         shell: bash
@@ -34,9 +42,17 @@ jobs:
           magick -background none store-assets/extension-icon.svg -resize 48x48 icons/icon48.png
           magick -background none store-assets/extension-icon.svg -resize 128x128 icons/icon128.png
 
-          magick -density 144 store-assets/promo-primary-1280x800.svg             -resize 1280x800! -background '#11142f' -alpha remove -alpha off             PNG24:store-assets/exports/promo-primary-1280x800.png
+          magick -density 144 store-assets/promo-small-440x280.svg \
+            -resize 440x280! -background '#11142f' -alpha remove -alpha off \
+            PNG24:store-assets/exports/promo-small-440x280.png
 
-          magick -density 144 store-assets/promo-marquee-1400x560.svg             -resize 1400x560! -background '#11142f' -alpha remove -alpha off             PNG24:store-assets/exports/promo-marquee-1400x560.png
+          magick -density 144 store-assets/promo-primary-1280x800.svg \
+            -resize 1280x800! -background '#11142f' -alpha remove -alpha off \
+            PNG24:store-assets/exports/promo-primary-1280x800.png
+
+          magick -density 144 store-assets/promo-marquee-1400x560.svg \
+            -resize 1400x560! -background '#11142f' -alpha remove -alpha off \
+            PNG24:store-assets/exports/promo-marquee-1400x560.png
 
           identify icons/icon16.png icons/icon32.png icons/icon48.png icons/icon128.png
           identify store-assets/exports/*.png
@@ -52,5 +68,5 @@ jobs:
             echo "Rendered assets are already current."
           else
             git commit -m "design: render extension and store artwork"
-            git push
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
           fi
