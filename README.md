@@ -89,6 +89,10 @@ The release build has no third-party npm dependencies, transpiler, minifier, or 
 2. Open a terminal in the repository root.
 3. Run `npm test` to execute the release regression suite.
 4. Run `npm run package:production`.
-5. Upload `dist/releases/Poe-Voice-Sync-Firefox-1.2.1.zip` to AMO, or use the Chromium ZIP beside it for Chromium stores.
+5. Upload `dist/releases/Poe-Voice-Sync-Firefox-1.2.2.zip` to AMO, or use the Chromium ZIP beside it for Chromium stores.
 
 The packaging script copies the allowlisted runtime files, removes the beta-only debug script tag, writes the production license-mode file, selects the browser-specific manifest, and creates deterministic ZIP archives. No network access or dependency installation is used during the build.
+
+## Store artwork
+
+The reusable vector masters and rendered upload assets live in `store-assets/`. The first screenshot in each store should show the real Poe conversation experience with message voice buttons and the popup—not the payment screen. Use the text-free 440 × 280 tile and 1400 × 560 marquee artwork for promotional placements, and link support to https://discord.gg/YzWbrnyxus.
