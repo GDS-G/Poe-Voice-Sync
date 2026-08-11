@@ -1,18 +1,13 @@
 name: Render brand assets
 
 on:
-  push:
-    branches:
-      - codex/branding-support-promo-1.2.2
-    paths:
-      - store-assets/**
-      - .github/workflows/render-brand-assets.yml
   pull_request:
     branches:
       - main
     paths:
       - store-assets/**
       - .github/workflows/render-brand-assets.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
