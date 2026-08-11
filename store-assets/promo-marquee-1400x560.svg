@@ -2,26 +2,28 @@
   <title id="title">Poe Voice Sync marquee promotional tile</title>
   <defs>
     <linearGradient id="bg" x1="70" y1="40" x2="1320" y2="530" gradientUnits="userSpaceOnUse"><stop stop-color="#11142f"/><stop offset=".58" stop-color="#4637b7"/><stop offset="1" stop-color="#c43bd9"/></linearGradient>
-    <linearGradient id="wave" x1="980" y1="100" x2="1290" y2="470" gradientUnits="userSpaceOnUse"><stop stop-color="#48d7ff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient>
+    <linearGradient id="wave" x1="1030" y1="100" x2="1330" y2="470" gradientUnits="userSpaceOnUse"><stop stop-color="#48d7ff"/><stop offset="1" stop-color="#ff4fd8"/></linearGradient>
   </defs>
   <rect width="1400" height="560" fill="url(#bg)"/>
   <circle cx="1225" cy="90" r="270" fill="#48d7ff" opacity=".09"/><circle cx="160" cy="590" r="290" fill="#ff4fd8" opacity=".08"/>
-  <g transform="translate(88 76)">
-    <rect width="88" height="88" rx="22" fill="#fff" opacity=".12"/>
-    <path d="M18 31c0-6 5-11 11-11h31c6 0 11 5 11 11v24c0 6-5 11-11 11H43L28 80V66c-6-.5-10-5-10-11V31Z" fill="#fff"/>
-    <rect x="27" y="30" width="37" height="26" rx="8" fill="#171a38"/><circle cx="38" cy="43" r="4" fill="#fff"/><circle cx="52" cy="43" r="4" fill="#fff"/>
-    <path d="M45 30v-7" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="45" cy="18" r="4" fill="#48d7ff"/>
+  <g transform="translate(88 70)">
+    <rect width="82" height="82" rx="21" fill="#fff" opacity=".12"/>
+    <path d="M17 29c0-6 5-10 10-10h29c6 0 10 4 10 10v23c0 6-4 10-10 10H40L26 75V62c-5-.5-9-4-9-10V29Z" fill="#fff"/>
+    <rect x="25" y="28" width="35" height="25" rx="8" fill="#171a38"/><circle cx="35" cy="41" r="4" fill="#fff"/><circle cx="49" cy="41" r="4" fill="#fff"/>
+    <path d="M42 28v-7" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="42" cy="17" r="4" fill="#48d7ff"/>
   </g>
-  <text x="198" y="128" fill="#fff" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="38" font-weight="750">Poe Voice Sync</text>
-  <text x="88" y="252" fill="#fff" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="70" font-weight="800">Give every Poe response a voice.</text>
-  <text x="91" y="315" fill="#dfe4ff" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="27">ElevenLabs or Hume • personalized voices first • reliable new-message auto-read</text>
-  <rect x="90" y="374" width="292" height="58" rx="29" fill="#fff"/>
-  <text x="236" y="411" text-anchor="middle" fill="#302878" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" font-weight="750">Listen your way</text>
+  <text x="194" y="120" fill="#fff" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="38" font-weight="750">Poe Voice Sync</text>
+  <text x="88" y="228" fill="#fff" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="62" font-weight="800">Give every Poe response</text>
+  <text x="88" y="294" fill="#fff" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="62" font-weight="800">a voice.</text>
+  <text x="91" y="346" fill="#dfe4ff" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="24">ElevenLabs or Hume • personalized voices first</text>
+  <text x="91" y="380" fill="#dfe4ff" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="24">Reliable auto-read for new chatbot messages</text>
+  <rect x="90" y="412" width="292" height="58" rx="29" fill="#fff"/>
+  <text x="236" y="449" text-anchor="middle" fill="#302878" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" font-weight="750">Listen your way</text>
   <g fill="none" stroke="url(#wave)" stroke-linecap="round">
-    <path d="M1060 187c48 52 48 131 0 183" stroke-width="20"/>
-    <path d="M1142 137c79 89 79 226 0 315" stroke-width="19"/>
-    <path d="M1230 88c113 130 113 323 0 383" stroke-width="17"/>
+    <path d="M1100 187c48 52 48 131 0 183" stroke-width="20"/>
+    <path d="M1180 137c79 89 79 226 0 315" stroke-width="19"/>
+    <path d="M1260 88c113 130 113 323 0 383" stroke-width="17"/>
   </g>
-  <path d="M855 202h64l84-65v275l-84-65h-64z" fill="#fff" opacity=".96"/>
-  <text x="90" y="510" fill="#dfe4ff" opacity=".76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">Not affiliated with Poe, ElevenLabs, or Hume. Voice-provider account and API key required.</text>
+  <path d="M930 202h64l84-65v275l-84-65h-64z" fill="#fff" opacity=".96"/>
+  <text x="90" y="520" fill="#dfe4ff" opacity=".76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">Not affiliated with Poe, ElevenLabs, or Hume. Voice-provider account and API key required.</text>
 </svg>
