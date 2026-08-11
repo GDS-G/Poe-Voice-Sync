@@ -1,0 +1,56 @@
+name: Render brand assets
+
+on:
+  push:
+    branches:
+      - codex/branding-support-promo-1.2.2
+    paths:
+      - store-assets/**
+      - .github/workflows/render-brand-assets.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render-brand-assets
+  cancel-in-progress: true
+
+jobs:
+  render:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branding branch
+        uses: actions/checkout@v4
+
+      - name: Render extension icons and store artwork
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p store-assets/exports
+
+          magick -background none store-assets/extension-icon.svg -resize 16x16 icons/icon16.png
+          magick -background none store-assets/extension-icon.svg -resize 32x32 icons/icon32.png
+          magick -background none store-assets/extension-icon.svg -resize 48x48 icons/icon48.png
+          magick -background none store-assets/extension-icon.svg -resize 128x128 icons/icon128.png
+
+          magick -density 144 store-assets/promo-primary-1280x800.svg             -resize 1280x800! -background '#11142f' -alpha remove -alpha off             PNG24:store-assets/exports/promo-primary-1280x800.png
+
+          magick -density 144 store-assets/promo-marquee-1400x560.svg             -resize 1400x560! -background '#11142f' -alpha remove -alpha off             PNG24:store-assets/exports/promo-marquee-1400x560.png
+
+          identify icons/icon16.png icons/icon32.png icons/icon48.png icons/icon128.png
+          identify store-assets/exports/*.png
+
+      - name: Commit rendered assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Poe Voice Sync Asset Bot"
+          git config user.email "admin@ascensionrealmstudios.com"
+          git add icons/icon16.png icons/icon32.png icons/icon48.png icons/icon128.png store-assets/exports
+          if git diff --cached --quiet; then
+            echo "Rendered assets are already current."
+          else
+            git commit -m "design: render extension and store artwork"
+            git push
+          fi
