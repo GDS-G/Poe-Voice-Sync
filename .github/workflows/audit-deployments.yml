@@ -51,7 +51,7 @@ jobs:
           print("Firefox slug:", data.get("slug"))
           print("Firefox version:", current.get("version"))
           print("Firefox reviewed:", current.get("reviewed"))
-          print("Firefox URL:", (data.get("url") or {}).get("en-US"))
+          print("Firefox URL:", data.get("url"))
           if data.get("slug") != "poe-voice-sync" or not current.get("version"):
               raise SystemExit("Firefox public release metadata is missing")
           PY
