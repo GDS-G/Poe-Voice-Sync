@@ -2,6 +2,10 @@
 
 Cross-browser extension that reads Poe chatbot responses aloud with either ElevenLabs or Hume voices.
 
+## Support and feedback
+
+Join the Poe Voice Sync Discord for setup help, troubleshooting, feedback, and feature requests: https://discord.gg/YzWbrnyxus
+
 ## Local beta installation
 
 1. Run `npm run package:beta` to create clean, secret-free `dist-beta/chromium/` and `dist-beta/firefox/` bundles.
