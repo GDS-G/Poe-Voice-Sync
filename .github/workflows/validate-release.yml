@@ -1,12 +1,10 @@
 name: Validate release
 
 on:
-  push:
-    branches:
-      - codex/branding-support-promo-1.2.2
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -36,6 +34,6 @@ jobs:
       - name: Upload store packages
         uses: actions/upload-artifact@v4
         with:
-          name: poe-voice-sync-1.2.2-store-packages
+          name: poe-voice-sync-store-packages
           path: dist/releases/*.zip
           if-no-files-found: error
