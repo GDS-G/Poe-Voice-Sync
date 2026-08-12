@@ -1,0 +1,39 @@
+name: Validate release
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run regression tests
+        run: npm test
+
+      - name: Validate and package all browsers
+        run: npm run package:production
+
+      - name: Upload store packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: poe-voice-sync-store-packages
+          path: dist/releases/*.zip
+          if-no-files-found: error

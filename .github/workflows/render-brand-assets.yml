@@ -1,0 +1,68 @@
+name: Render brand assets
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - store-assets/**
+      - .github/workflows/render-brand-assets.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render-brand-assets-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branding branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Install SVG renderer
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes librsvg2-bin imagemagick
+
+      - name: Render extension icons and store artwork
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p store-assets/exports
+
+          rsvg-convert -w 16 -h 16 store-assets/extension-icon.svg > icons/icon16.png
+          rsvg-convert -w 32 -h 32 store-assets/extension-icon.svg > icons/icon32.png
+          rsvg-convert -w 48 -h 48 store-assets/extension-icon.svg > icons/icon48.png
+          rsvg-convert -w 128 -h 128 store-assets/extension-icon.svg > icons/icon128.png
+
+          rsvg-convert -w 440 -h 280 store-assets/promo-small-440x280.svg \
+            > store-assets/exports/promo-small-440x280.png
+          rsvg-convert -w 1280 -h 800 store-assets/promo-primary-1280x800.svg \
+            > store-assets/exports/promo-primary-1280x800.png
+          rsvg-convert -w 1400 -h 560 store-assets/promo-marquee-1400x560.svg \
+            > store-assets/exports/promo-marquee-1400x560.png
+
+          identify icons/icon16.png icons/icon32.png icons/icon48.png icons/icon128.png
+          identify store-assets/exports/*.png
+
+      - name: Commit rendered assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Poe Voice Sync Asset Bot"
+          git config user.email "admin@ascensionrealmstudios.com"
+          git add icons/icon16.png icons/icon32.png icons/icon48.png icons/icon128.png store-assets/exports
+          if git diff --cached --quiet; then
+            echo "Rendered assets are already current."
+          else
+            git commit -m "design: render extension and store artwork"
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          fi

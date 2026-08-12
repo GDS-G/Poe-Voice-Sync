@@ -6,15 +6,43 @@ Poe Voice Sync
 
 ## Short description
 
-Read Poe chatbot responses aloud with your own ElevenLabs or Hume voices.
+Hear Poe chatbot replies with ElevenLabs or Hume voices, automatic new-message playback, and per-message controls.
 
 ## Detailed description
 
-Poe Voice Sync adds a speech button to Poe chatbot responses and can automatically read newly received responses. Choose ElevenLabs or Hume, enter your own provider API key, and select from your available voices. Personalized voices appear before provider-library voices.
+Give every Poe response a voice.
 
-The extension does not read existing conversation history automatically when a Poe page first loads. Manual speech buttons remain available for current and earlier chatbot responses.
+Poe Voice Sync adds a voice button beside Poe chatbot responses and can automatically read newly received replies. Choose ElevenLabs or Hume, enter your own provider API key, and select from your available voices. Personalized voices appear before provider-library voices.
+
+- ElevenLabs and Hume support
+- Automatic playback for new chatbot replies
+- No automatic playback of old messages when a page loads
+- Per-message voice controls for current and earlier responses
+- Personalized voices listed first
+- One shared API-key field that remembers each provider separately
+- Chrome, Edge, Firefox, Brave, and Vivaldi support
 
 Poe Voice Sync is paid software with a three-day free trial and no ongoing free tier. Access after the trial is $9.99 USD per month or $99.99 USD per year. Voice-provider usage is billed separately by ElevenLabs or Hume under the user's own account.
+
+Poe Voice Sync is not affiliated with Poe, ElevenLabs, or Hume.
+
+## Support and feedback
+
+Discord: https://discord.gg/YzWbrnyxus
+
+Repository and documentation: https://github.com/GDS-G/Poe-Voice-Sync
+
+Privacy policy: https://github.com/GDS-G/Poe-Voice-Sync/blob/main/PRIVACY.md
+
+## Store image order
+
+1. Real Poe conversation with the extension's voice buttons visible and the popup open to the provider/voice controls.
+2. Real auto-read flow showing a newly completed chatbot reply.
+3. Real provider switch showing ElevenLabs and Hume plus personalized voices first.
+4. Branded 1280 × 800 feature overview from `store-assets/exports/`.
+5. Support/subscription information without making checkout the lead image.
+
+Use `promo-small-440x280.png` as the text-free small tile and `promo-marquee-1400x560.png` as the marquee tile. Do not use the payment page as the primary screenshot.
 
 ## Single purpose
 

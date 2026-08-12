@@ -22,7 +22,8 @@ test('Firefox store archive uses portable ZIP entry paths', () => {
     });
     assert.equal(build.status, 0, build.stderr || build.stdout);
 
-    const archive = readFileSync('dist/releases/Poe-Voice-Sync-Firefox-1.2.1.zip');
+    const { version } = JSON.parse(readFileSync('manifest.json', 'utf8'));
+    const archive = readFileSync(`dist/releases/Poe-Voice-Sync-Firefox-${version}.zip`);
     const names = [];
     let offset = 0;
     while (archive.readUInt32LE(offset) === 0x04034b50) {
